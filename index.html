@@ -28,6 +28,27 @@
         </h1>
     </header>
 
+    <div id="login-view" class="fixed inset-0 bg-gray-50 z-[100] flex items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg space-y-6">
+            <div class="text-center">
+                <h2 class="text-2xl font-bold text-gray-800">Trade Flow</h2>
+                <p class="text-gray-500 text-sm mt-2">ログインしてデータを管理</p>
+            </div>
+        
+            <div class="space-y-4">
+                <input type="email" id="email" placeholder="メールアドレス" 
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                <input type="password" id="password" placeholder="パスワード" 
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+            
+                <button onclick="handleLogin()" 
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all">
+                    ログイン
+                </button>
+            </div>
+        </div>
+    </div>
+
     <main id="app-container" class="max-w-md mx-auto px-4 w-full flex-1 flex flex-col min-h-0 overflow-hidden">
         <section id="view-calendar" class="flex flex-col flex-1 min-h-0 pt-1">
 
@@ -279,8 +300,7 @@
         const supabaseUrl = 'https://wplrykemwhdqkpwjoxck.supabase.co';
         const supabaseKey = 'sb_publishable_KRCDws1Amn3BRq5khYiKCg__BSlcwsu';
 
-        const { createClient } = supabase;
-        const supabaseClient = createClient(supabaseUrl, supabaseKey);
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         // カラーパレット(16色)の定数定義
         const PALETTE_COLORS = [
@@ -320,18 +340,51 @@
 
         // アプリケーション初期化
         window.addEventListener('DOMContentLoaded', async () => {
-            await initDataFromSupabase();
-            initColorPaletteUI();
-            setupKeyboardListeners();
-            switchView('calendar');
-            lucide.createIcons();
+            if (await checkAuth()) {
+                await initDataFromSupabase();
+                initColorPaletteUI();
+                setupKeyboardListeners();
+                switchView('calendar');
+                lucide.createIcons();
+            }
         });
+
+        // ログイン
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            const { error: loginError } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (!loginError) {
+                document.getElementById('login-view').classList.add('hidden');
+                location.reload();
+            } else {
+                alert("ログイン失敗: " + loginError.message);
+            }
+        }
+
+        async function checkAuth() {
+            const {data: {session}} = await supabaseClient.auth.getSession();
+            if (session) {
+                document.getElementById('login-view').classList.add('hidden');
+                return true;
+            }
+            return false;
+        }
 
         // データアクセス
         async function initDataFromSupabase() {
             const {data: cats, error: catError} = await supabaseClient.from('categories').select('*');
-            if (!catError && cats && cats.length > 0) {
-                state.categories = cats;
+
+            if (!catError && cats.length) {
+                state.categories = cats.map(c => {
+                    const {user_id, ...rest} = c;
+                    return rest;
+                });
             } else {
                 state.categories = [...DEFAULT_CATEGORIES];
                 await saveCategoriesToSupabase();
@@ -341,11 +394,18 @@
         }
 
         async function saveCategoriesToSupabase() {
+            const {data: {user}} = await supabaseClient.auth.getUser();
+
+            const cats = state.categories.map(c => ({
+                ...c,
+                user_id: user.id
+            }));
+
             try {
-                const {error: delError} = await supabaseClient.from('categories').delete().neq('id', 'dummy');
+                const {error: delError} = await supabaseClient.from('categories').delete().eq('user_id', user.id);
                 if (delError) throw delError;
 
-                const {error: insError} = await supabaseClient.from('categories').upsert(state.categories);
+                const {error: insError} = await supabaseClient.from('categories').upsert(cats);
                 if (insError) throw insError;
 
                 await loadCategoriesFromSupabase();
@@ -356,31 +416,49 @@
 
         async function loadCategoriesFromSupabase() {
             const {data: cats, error: catError} = await supabaseClient.from('categories').select('*');
-            if (!catError && cats && cats.length > 0) {
-                state.categories = cats;
+
+            if (!catError && cats.length) {
+                state.categories = cats.map(c => {
+                    const {user_id, ...rest} = c;
+                    return rest;
+                });
             } else {
                 alert("カテゴリの読込に失敗しました。");
             }
         }
 
         async function saveRecordsToSupabase() {
-           try {
-                const {error: delError} = await supabaseClient.from('records').delete().neq('id', 'dummy');
+            const {data: {user}} = await supabaseClient.auth.getUser();
+
+            const recs = state.records.map(r => ({
+                ...r,
+                user_id: user.id
+            }));
+
+            try {
+                const {error: delError} = await supabaseClient.from('records').delete().eq('user_id', user.id);
                 if (delError) throw delError;
 
-                const {error: insError} = await supabaseClient.from('records').upsert(state.records);
+                const {error: insError} = await supabaseClient.from('records').upsert(recs);
                 if (insError) throw insError;
 
                 await loadRecordsFromSupabase();
             } catch(e) {
-                alert("取引データの保存に失敗しました。" + e.message);
+                alert("取引データの保存に失敗しました。");
             }           
         }
 
         async function loadRecordsFromSupabase() {
             const {data: recs, error: recError} = await supabaseClient.from('records').select('*');
             if (!recError) {
-                state.records = recs || [];
+                if (recs.length) {
+                    state.records = recs.map(r => {
+                        const {user_id, ...rest} = r;
+                        return rest;
+                   });
+                } else {
+                    state.records = [];
+                }
             } else {
                 alert("取引データの読込に失敗しました。");
             }
@@ -707,8 +785,8 @@
                 const items = groups[dateStr];
 
                 items.sort((a, b) => {
-                    const indexA = state.categories.findIndex(c => c.id === a.categoryId);
-                    const indexB = state.categories.findIndex(c => c.id === b.categoryId);
+                    const indexA = state.categories.findIndex(c => c.id === a.category_id);
+                    const indexB = state.categories.findIndex(c => c.id === b.category_id);
                     return indexA - indexB;
                 });
 
@@ -720,7 +798,7 @@
                 listContainer.appendChild(header);
 
                 items.forEach(item => {
-                    const cat = state.categories.find(c => c.id === item.categoryId) || { name: 'その他', color: '#64748b' };
+                    const cat = state.categories.find(c => c.id === item.category_id) || { name: 'その他', color: '#64748b' };
                     const div = document.createElement('div');
                     div.className = "p-3 flex items-center justify-between hover:bg-slate-50 cursor-pointer";
                     div.onclick = () => prepareEditInputView(item.id);
@@ -812,7 +890,7 @@
             document.getElementById('form-date').value = target.date;
             document.getElementById('form-amount').value = target.amount.toString();
             document.getElementById('form-memo').value = target.memo || "";
-            state.selectedFormCategoryId = target.categoryId;
+            state.selectedFormCategoryId = target.category_id;
 
             switchView('input');
         }
@@ -1128,7 +1206,7 @@
                 const idx = state.records.findIndex(r => r.id === state.editingRecordId);
                 if (idx !== -1) {
                     state.records[idx].date = dateVal;
-                    state.records[idx].categoryId = state.selectedFormCategoryId;
+                    state.records[idx].category_id = state.selectedFormCategoryId;
                     state.records[idx].amount = amtVal;
                     state.records[idx].memo = memoVal;
                 }
@@ -1136,7 +1214,7 @@
                 const newRec = {
                     id: 'rec-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
                     date: dateVal,
-                    categoryId: state.selectedFormCategoryId,
+                    category_id: state.selectedFormCategoryId,
                     amount: amtVal,
                     memo: memoVal
                 };
@@ -1196,7 +1274,7 @@
             // カテゴリ集計
             const aggregate = (data) => {
                 const grouped = data.reduce((acc, curr) => {
-                    const cat = state.categories.find(c => c.id === curr.categoryId) || {id: 'unknown', name: '未分類', color: '#9ca3af'};
+                    const cat = state.categories.find(c => c.id === curr.category_id) || {id: 'unknown', name: '未分類', color: '#9ca3af'};
 
                     if (!acc[cat.id]) {
                         acc[cat.id] = {id: cat.id, name: cat.name, value: 0, color: cat.color};
