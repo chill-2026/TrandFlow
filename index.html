@@ -1,1396 +1,1513 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trade Flow</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .category-scroll-container { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 56px; }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      .category-scroll-container {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-auto-rows: 56px;
+      }
 
-        /* タッチデバイス（スマホ）ではポップアップを強制的に無効化する */
-        @media (pointer: coarse) {
-            #calendar-tooltip { display: none !important; }
+      /* タッチデバイス（スマホ）ではポップアップを強制的に無効化する */
+      @media (pointer: coarse) {
+        #calendar-tooltip {
+          display: none !important;
         }
+      }
     </style>
-</head>
-<body class="bg-gray-50 text-gray-800 antialiased font-sans select-none h-[100dvh] flex flex-col">
-
+    <link rel="icon" type="image/png" href="./icons/icon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="./icons/icon-512x512.png" sizes="512x512" />
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png" />
+  </head>
+  <body class="bg-gray-50 text-gray-800 antialiased font-sans select-none h-[100dvh] flex flex-col">
     <header class="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
-        <h1 class="text-lg font-bold text-slate-800 tracking-wide flex items-center gap-2">
-            <i data-lucide="wallet" class="w-5 h-5 text-indigo-600"></i>Trade Flow
-        </h1>
+      <h1 class="text-lg font-bold text-slate-800 tracking-wide flex items-center gap-2">
+        <i data-lucide="wallet" class="w-5 h-5 text-indigo-600"></i>Trade Flow
+      </h1>
     </header>
 
     <div id="login-view" class="fixed inset-0 bg-gray-50 z-[100] flex items-center justify-center p-4">
-        <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg space-y-6">
-            <div class="text-center">
-                <h2 class="text-2xl font-bold text-gray-800">Trade Flow</h2>
-                <p class="text-gray-500 text-sm mt-2">ログインしてデータを管理</p>
-            </div>
-        
-            <div class="space-y-4">
-                <input type="email" id="email" placeholder="メールアドレス" 
-                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-                <input type="password" id="password" placeholder="パスワード" 
-                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-            
-                <button onclick="handleLogin()" 
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all">
-                    ログイン
-                </button>
-            </div>
+      <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg space-y-6">
+        <div class="text-center">
+          <h2 class="text-2xl font-bold text-gray-800">Trade Flow</h2>
+          <p class="text-gray-500 text-sm mt-2">ログインしてデータを管理</p>
         </div>
+
+        <div class="space-y-4">
+          <input
+            type="email"
+            id="email"
+            placeholder="メールアドレス"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+          <input
+            type="password"
+            id="password"
+            placeholder="パスワード"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+
+          <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all">ログイン</button>
+        </div>
+      </div>
     </div>
 
     <main id="app-container" class="max-w-md mx-auto px-4 w-full flex-1 flex flex-col min-h-0 overflow-hidden">
-        <section id="view-calendar" class="flex flex-col flex-1 min-h-0 pt-1">
+      <section id="view-calendar" class="flex flex-col flex-1 min-h-0 pt-1">
+        <div id="calendar-swipe-area" class="flex-shrink-0 space-y-1.5">
+          <div class="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+            <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-xl transition">
+              <i data-lucide="chevron-left" class="w-5 h-5 text-gray-600"></i>
+            </button>
+            <button onclick="resetToCurrentMonth()" id="calendar-month-title" class="text-base font-bold text-gray-700 hover:text-indigo-600 transition">
+              ----年 --月
+            </button>
+            <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-xl transition">
+              <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i>
+            </button>
+          </div>
 
-            <div id="calendar-swipe-area" class="flex-shrink-0 space-y-1.5">
-                <div class="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                    <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-xl transition">
-                        <i data-lucide="chevron-left" class="w-5 h-5 text-gray-600"></i>
-                    </button>
-                    <button onclick="resetToCurrentMonth()" id="calendar-month-title" class="text-base font-bold text-gray-700 hover:text-indigo-600 transition">
-                        ----年 --月
-                    </button>
-                    <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-xl transition">
-                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i>
-                    </button>
-                </div>
-
-                <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                    <div class="grid grid-cols-7 text-center font-semibold text-xs text-gray-400 mb-1">
-                        <div class="text-red-500">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="text-blue-500">土</div>
-                    </div>
-                    <div id="calendar-grid" class="grid grid-cols-7 gap-0.5"></div>
-                </div>
-
-                <div class="grid grid-cols-3 gap-2 text-center">
-                    <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">収入</div>
-                        <div id="calendar-income" class="font-bold text-blue-600 text-sm mt-0.5">0</div>
-                    </div>
-                    <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">支出</div>
-                        <div id="calendar-expense" class="font-bold text-red-500 text-sm mt-0.5">0</div>
-                    </div>
-                    <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">総収支</div>
-                        <div id="calendar-total" class="font-bold text-sm mt-0.5">0</div>
-                    </div>
-                </div>
+          <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+            <div class="grid grid-cols-7 text-center font-semibold text-xs text-gray-400 mb-1">
+              <div class="text-red-500">日</div>
+              <div>月</div>
+              <div>火</div>
+              <div>水</div>
+              <div>木</div>
+              <div>金</div>
+              <div class="text-blue-500">土</div>
             </div>
+            <div id="calendar-grid" class="grid grid-cols-7 gap-0.5"></div>
+          </div>
 
-            <div class="flex flex-col flex-1 min-h-0 mt-3 mb-4 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div class="p-3 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
-                    <h3 class="text-xs font-bold text-gray-400 tracking-wider uppercase">履歴一覧</h3>
-                </div>
-                <div id="history-container" class="bg-white overflow-y-auto custom-scrollbar flex-1 divide-y divide-gray-100"></div>
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+              <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">収入</div>
+              <div id="calendar-income" class="font-bold text-blue-600 text-sm mt-0.5">0</div>
             </div>
-        </section>
-
-        <section id="view-input" class="hidden space-y-3 pt-3 overflow-y-auto custom-scrollbar h-full">
-            <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-                <h2 id="input-view-title" class="text-base font-bold text-gray-700 pb-2 border-b border-gray-100">取引の入力</h2>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">日付</label>
-                    <input type="date" id="form-date" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-1">
-                        <label class="text-xs font-semibold text-gray-400">カテゴリ</label>
-                        <button onclick="openCategorySettingModal()" class="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:text-indigo-700">
-                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>編集
-                        </button>
-                    </div>
-                    <div class="border border-gray-200 rounded-xl p-1.5 h-[130px] overflow-y-auto custom-scrollbar bg-gray-50">
-                        <div id="form-category-grid" class="category-scroll-container gap-1"></div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">金額</label>
-                    <input type="text" id="form-amount" value="0" readonly onclick="openCalculator()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-right font-bold text-lg text-gray-700 focus:outline-none cursor-pointer border-indigo-100 hover:border-indigo-300 transition">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">メモ</label>
-                    <input type="text" id="form-memo" placeholder="メモを入力" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                </div>
-
-                <div class="flex gap-2 pt-2">
-                    <button id="btn-delete-record" onclick="deleteRecord()" class="hidden flex-1 bg-red-50 text-red-600 font-bold py-3 rounded-xl hover:bg-red-100 transition text-sm">
-                        削除
-                    </button>
-                    <button onclick="saveRecord()" class="flex-[2] bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition shadow-md shadow-indigo-600/10 text-sm text-center">
-                        保存する
-                    </button>
-                </div>
+            <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+              <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">支出</div>
+              <div id="calendar-expense" class="font-bold text-red-500 text-sm mt-0.5">0</div>
             </div>
-        </section>
-
-        <section id="view-report" class="hidden flex flex-col flex-1 min-h-0 pt-3">
-            <div class="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-sm flex-shrink-0">
-                <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-xl transition">
-                    <i data-lucide="chevron-left" class="w-5 h-5 text-gray-600"></i>
-                </button>
-                <button onclick="resetToCurrentMonth()" id="report-month-title" class="text-base font-bold text-gray-700 hover:text-indigo-600 transition">
-                    ----年 --月
-                </button>
-                <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-xl transition">
-                    <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i>
-                </button>
+            <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+              <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">総収支</div>
+              <div id="calendar-total" class="font-bold text-sm mt-0.5">0</div>
             </div>
+          </div>
+        </div>
 
-            <div class="p-2 grid grid-cols-3 gap-2 text-center">
-                <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">収入</div>
-                    <div id="report-income" class="font-bold text-blue-600 text-sm mt-0.5">0</div>
-                </div>
-                <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">支出</div>
-                    <div id="report-expense" class="font-bold text-red-500 text-sm mt-0.5">0</div>
-                </div>
-                <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">総収支</div>
-                    <div id="report-total" class="font-bold text-sm mt-0.5">0</div>
-                </div>
+        <div class="flex flex-col flex-1 min-h-0 mt-3 mb-4 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="p-3 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
+            <h3 class="text-xs font-bold text-gray-400 tracking-wider uppercase">履歴一覧</h3>
+          </div>
+          <div id="history-container" class="bg-white overflow-y-auto custom-scrollbar flex-1 divide-y divide-gray-100"></div>
+        </div>
+      </section>
+
+      <section id="view-input" class="hidden space-y-3 pt-3 overflow-y-auto custom-scrollbar h-full">
+        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+          <h2 id="input-view-title" class="text-base font-bold text-gray-700 pb-2 border-b border-gray-100">取引の入力</h2>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">日付</label>
+            <input
+              type="date"
+              id="form-date"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-semibold text-gray-400">カテゴリ</label>
+              <button onclick="openCategorySettingModal()" class="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:text-indigo-700">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>編集
+              </button>
             </div>
-
-            <div class="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
-                <div class="bg-white p-2 rounded-2xl shadow-sm border">
-                    <h3 class="font-bold mb-2">利益の内訳</h3>
-                    <svg id="report-svg-income" class="w-full h-32" viewBox="0 0 100 100"></svg>
-                    <div id="report-legend-income"></div>
-                </div>
-
-                <div class="bg-white p-2 rounded-2xl shadow-sm border mt-4">
-                    <h3 class="font-bold mb-2">損失の内訳</h3>
-                    <svg id="report-svg-expense" class="w-full h-32" viewBox="0 0 100 100"></svg>
-                    <div id="report-legend-expense"></div>
-                </div>
+            <div class="border border-gray-200 rounded-xl p-1.5 h-[130px] overflow-y-auto custom-scrollbar bg-gray-50">
+              <div id="form-category-grid" class="category-scroll-container gap-1"></div>
             </div>
-        </section>
+          </div>
 
-        <section id="view-settings" class="hidden space-y-4 pt-3 overflow-y-auto custom-scrollbar h-full">
-            <div class="px-4">
-                <h2 class="text-sm font-bold text-gray-700 mb-3">設定</h2>
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y">
-                    <button onclick="exportDataToJson()" class="w-full p-4 flex items-center justify-between hover:bg-gray-50">
-                        <div class="flex items-center gap-3">
-                            <i data-lucide="download" class="w-5 h-5 text-gray-500"></i>
-                            <span class="text-xs font-bold">データの保存</span>
-                        </div>
-                    </button>
-                    <input type="file" id="file-import" accept=".json" class="hidden" onchange="importDataFromJson(event)">
-                    <button onclick="document.getElementById('file-import').click()" class="w-full p-4 flex items-center justify-between hover:bg-gray-50">
-                        <div class="flex items-center gap-3">
-                            <i data-lucide="upload" class="w-5 h-5 text-gray-500"></i>
-                            <span class="text-xs font-bold">データの復元</span>
-                        </div>
-                    </button>
-                    <button onclick="resetAllData()" class="w-full p-4 flex items-center justify-between hover:bg-red-50 group">
-                        <div class="flex items-center gap-3 text-red-500">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                            <span class="text-xs font-bold">全データをリセット</span>
-                        </div>
-                    </button>
-                </div>
-            </div>
-        </section>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">金額</label>
+            <input
+              type="text"
+              id="form-amount"
+              value="0"
+              readonly
+              onclick="openCalculator()"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-right font-bold text-lg text-gray-700 focus:outline-none cursor-pointer border-indigo-100 hover:border-indigo-300 transition"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">メモ</label>
+            <input
+              type="text"
+              id="form-memo"
+              placeholder="メモを入力"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            />
+          </div>
+
+          <div class="flex gap-2 pt-2">
+            <button
+              id="btn-delete-record"
+              onclick="deleteRecord()"
+              class="hidden flex-1 bg-red-50 text-red-600 font-bold py-3 rounded-xl hover:bg-red-100 transition text-sm"
+            >
+              削除
+            </button>
+            <button
+              onclick="saveRecord()"
+              class="flex-[2] bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition shadow-md shadow-indigo-600/10 text-sm text-center"
+            >
+              保存する
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-report" class="hidden flex flex-col flex-1 min-h-0 pt-3">
+        <div class="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-sm flex-shrink-0">
+          <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-xl transition">
+            <i data-lucide="chevron-left" class="w-5 h-5 text-gray-600"></i>
+          </button>
+          <button onclick="resetToCurrentMonth()" id="report-month-title" class="text-base font-bold text-gray-700 hover:text-indigo-600 transition">
+            ----年 --月
+          </button>
+          <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-xl transition">
+            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i>
+          </button>
+        </div>
+
+        <div class="p-2 grid grid-cols-3 gap-2 text-center">
+          <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">収入</div>
+            <div id="report-income" class="font-bold text-blue-600 text-sm mt-0.5">0</div>
+          </div>
+          <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">支出</div>
+            <div id="report-expense" class="font-bold text-red-500 text-sm mt-0.5">0</div>
+          </div>
+          <div class="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">総収支</div>
+            <div id="report-total" class="font-bold text-sm mt-0.5">0</div>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+          <div class="bg-white p-2 rounded-2xl shadow-sm border">
+            <h3 class="font-bold mb-2">利益の内訳</h3>
+            <svg id="report-svg-income" class="w-full h-32" viewBox="0 0 100 100"></svg>
+            <div id="report-legend-income"></div>
+          </div>
+
+          <div class="bg-white p-2 rounded-2xl shadow-sm border mt-4">
+            <h3 class="font-bold mb-2">損失の内訳</h3>
+            <svg id="report-svg-expense" class="w-full h-32" viewBox="0 0 100 100"></svg>
+            <div id="report-legend-expense"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-settings" class="hidden space-y-4 pt-3 overflow-y-auto custom-scrollbar h-full">
+        <div class="px-4">
+          <h2 class="text-sm font-bold text-gray-700 mb-3">設定</h2>
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y">
+            <button onclick="exportDataToJson()" class="w-full p-4 flex items-center justify-between hover:bg-gray-50">
+              <div class="flex items-center gap-3">
+                <i data-lucide="download" class="w-5 h-5 text-gray-500"></i>
+                <span class="text-xs font-bold">データの保存</span>
+              </div>
+            </button>
+            <input type="file" id="file-import" accept=".json" class="hidden" onchange="importDataFromJson(event)" />
+            <button onclick="document.getElementById('file-import').click()" class="w-full p-4 flex items-center justify-between hover:bg-gray-50">
+              <div class="flex items-center gap-3">
+                <i data-lucide="upload" class="w-5 h-5 text-gray-500"></i>
+                <span class="text-xs font-bold">データの復元</span>
+              </div>
+            </button>
+            <button onclick="resetAllData()" class="w-full p-4 flex items-center justify-between hover:bg-red-50 group">
+              <div class="flex items-center gap-3 text-red-500">
+                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                <span class="text-xs font-bold">全データをリセット</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </section>
     </main>
 
-    <div id="calendar-tooltip" class="fixed hidden text-white font-bold text-base px-3 py-1.5 rounded-xl shadow-xl pointer-events-none z-50 transition-opacity duration-150"></div>
+    <div
+      id="calendar-tooltip"
+      class="fixed hidden text-white font-bold text-base px-3 py-1.5 rounded-xl shadow-xl pointer-events-none z-50 transition-opacity duration-150"
+    ></div>
 
-    <nav class="bg-white border-t border-gray-200 px-6 py-2 flex justify-around items-center max-w-md mx-auto shadow-[0_-2px_10px_rgba(0,0,0,0.03)] z-10 flex-shrink-0 w-full">
-        <button onclick="switchView('calendar')" id="nav-calendar" class="flex flex-col items-center gap-1 text-indigo-600 font-bold transition">
-            <i data-lucide="calendar" class="w-5 h-5"></i><span class="text-[10px]">カレンダー</span>
-        </button>
-        <button onclick="prepareNewInputView()" id="nav-input" class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 font-medium transition">
-            <i data-lucide="pencil" class="w-5 h-5"></i><span class="text-[10px]">入力</span>
-        </button>
-        <button onclick="switchView('report')" id="nav-report" class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 font-medium transition">
-            <i data-lucide="pie-chart" class="w-5 h-5"></i><span class="text-[10px]">レポート</span>
-        </button>
-        <button onclick="switchView('settings')" id="nav-settings" class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 font-medium transition">
-            <i data-lucide="more-horizontal" class="w-5 h-5"></i><span class="text-[10px]">その他</span>
-        </button>
+    <nav
+      class="bg-white border-t border-gray-200 px-6 py-2 flex justify-around items-center max-w-md mx-auto shadow-[0_-2px_10px_rgba(0,0,0,0.03)] z-10 flex-shrink-0 w-full"
+    >
+      <button onclick="switchView('calendar')" id="nav-calendar" class="flex flex-col items-center gap-1 text-indigo-600 font-bold transition">
+        <i data-lucide="calendar" class="w-5 h-5"></i><span class="text-[10px]">カレンダー</span>
+      </button>
+      <button onclick="prepareNewInputView()" id="nav-input" class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 font-medium transition">
+        <i data-lucide="pencil" class="w-5 h-5"></i><span class="text-[10px]">入力</span>
+      </button>
+      <button onclick="switchView('report')" id="nav-report" class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 font-medium transition">
+        <i data-lucide="pie-chart" class="w-5 h-5"></i><span class="text-[10px]">レポート</span>
+      </button>
+      <button
+        onclick="switchView('settings')"
+        id="nav-settings"
+        class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 font-medium transition"
+      >
+        <i data-lucide="more-horizontal" class="w-5 h-5"></i><span class="text-[10px]">その他</span>
+      </button>
     </nav>
 
     <div id="modal-calc" class="fixed inset-0 bg-black/40 hidden items-end justify-center z-50 p-4 transition-all">
-        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
-            <div class="bg-slate-800 p-4 text-right">
-                <div id="calc-expr" class="text-xs text-slate-400 min-h-[16px] tracking-wide font-mono"></div>
-                <div id="calc-screen" class="text-2xl font-bold text-white font-mono truncate mt-0.5">0</div>
-            </div>
-            <div class="grid grid-cols-4 gap-px bg-gray-200">
-                <button onclick="pressCalc('C')" class="bg-gray-50 p-4 font-bold text-gray-600 hover:bg-gray-100 text-sm">C</button>
-                <button onclick="pressCalc('±')" class="bg-gray-50 p-4 font-bold text-gray-600 hover:bg-gray-100 text-sm">±</button>
-                <button onclick="pressCalc('/')" class="bg-gray-50 p-4 font-bold text-indigo-600 hover:bg-gray-100 text-sm">÷</button>
-                <button onclick="pressCalc('DEL')" class="bg-gray-50 p-4 font-bold text-red-500 hover:bg-gray-100 text-sm flex items-center justify-center"><i data-lucide="delete" class="w-4 h-4"></i></button>
-
-                <button onclick="pressCalc('7')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">7</button>
-                <button onclick="pressCalc('8')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">8</button>
-                <button onclick="pressCalc('9')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">9</button>
-                <button onclick="pressCalc('*')" class="bg-gray-50 p-4 font-bold text-indigo-600 hover:bg-gray-100 text-sm">×</button>
-
-                <button onclick="pressCalc('4')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">4</button>
-                <button onclick="pressCalc('5')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">5</button>
-                <button onclick="pressCalc('6')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">6</button>
-                <button onclick="pressCalc('-')" class="bg-gray-50 p-4 font-bold text-indigo-600 hover:bg-gray-100 text-sm">-</button>
-
-                <button onclick="pressCalc('1')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">1</button>
-                <button onclick="pressCalc('2')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">2</button>
-                <button onclick="pressCalc('3')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">3</button>
-                <button onclick="pressCalc('+')" class="bg-gray-50 p-4 font-bold text-indigo-600 hover:bg-gray-100 text-sm">+</button>
-
-                <button onclick="pressCalc('0')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm col-span-2">0</button>
-                <button onclick="pressCalc('.')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">.</button>
-                <button onclick="pressCalc('=')" class="bg-indigo-600 p-4 font-bold text-white hover:bg-indigo-700 text-sm">=</button>
-            </div>
-            <div class="p-3 bg-white border-t border-gray-100 flex gap-2">
-                <button onclick="closeCalculator(false)" class="flex-1 bg-gray-100 text-gray-500 font-bold py-2.5 rounded-xl text-xs hover:bg-gray-200 transition">キャンセル</button>
-                <button onclick="closeCalculator(true)" class="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-indigo-700 transition">確定</button>
-            </div>
+      <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+        <div class="bg-slate-800 p-4 text-right">
+          <div id="calc-expr" class="text-xs text-slate-400 min-h-[16px] tracking-wide font-mono"></div>
+          <div id="calc-screen" class="text-2xl font-bold text-white font-mono truncate mt-0.5">0</div>
         </div>
+        <div class="grid grid-cols-4 gap-px bg-gray-200">
+          <button onclick="pressCalc('C')" class="bg-gray-50 p-4 font-bold text-gray-600 hover:bg-gray-100 text-sm">C</button>
+          <button onclick="pressCalc('±')" class="bg-gray-50 p-4 font-bold text-gray-600 hover:bg-gray-100 text-sm">±</button>
+          <button onclick="pressCalc('/')" class="bg-gray-50 p-4 font-bold text-indigo-600 hover:bg-gray-100 text-sm">÷</button>
+          <button onclick="pressCalc('DEL')" class="bg-gray-50 p-4 font-bold text-red-500 hover:bg-gray-100 text-sm flex items-center justify-center">
+            <i data-lucide="delete" class="w-4 h-4"></i>
+          </button>
+
+          <button onclick="pressCalc('7')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">7</button>
+          <button onclick="pressCalc('8')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">8</button>
+          <button onclick="pressCalc('9')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">9</button>
+          <button onclick="pressCalc('*')" class="bg-gray-50 p-4 font-bold text-indigo-600 hover:bg-gray-100 text-sm">×</button>
+
+          <button onclick="pressCalc('4')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">4</button>
+          <button onclick="pressCalc('5')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">5</button>
+          <button onclick="pressCalc('6')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">6</button>
+          <button onclick="pressCalc('-')" class="bg-gray-50 p-4 font-bold text-indigo-600 hover:bg-gray-100 text-sm">-</button>
+
+          <button onclick="pressCalc('1')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">1</button>
+          <button onclick="pressCalc('2')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">2</button>
+          <button onclick="pressCalc('3')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">3</button>
+          <button onclick="pressCalc('+')" class="bg-gray-50 p-4 font-bold text-indigo-600 hover:bg-gray-100 text-sm">+</button>
+
+          <button onclick="pressCalc('0')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm col-span-2">0</button>
+          <button onclick="pressCalc('.')" class="bg-white p-4 font-bold text-gray-700 hover:bg-gray-50 text-sm">.</button>
+          <button onclick="pressCalc('=')" class="bg-indigo-600 p-4 font-bold text-white hover:bg-indigo-700 text-sm">=</button>
+        </div>
+        <div class="p-3 bg-white border-t border-gray-100 flex gap-2">
+          <button onclick="closeCalculator(false)" class="flex-1 bg-gray-100 text-gray-500 font-bold py-2.5 rounded-xl text-xs hover:bg-gray-200 transition">
+            キャンセル
+          </button>
+          <button onclick="closeCalculator(true)" class="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-indigo-700 transition">
+            確定
+          </button>
+        </div>
+      </div>
     </div>
 
     <div id="modal-category" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-5 space-y-4">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-2">
-                <h3 class="font-bold text-gray-700 text-sm">カテゴリ設定の編集</h3>
-                <button onclick="closeCategorySettingModal()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            
-            <div id="modal-category-list" class="max-h-40 overflow-y-auto custom-scrollbar divide-y divide-gray-100 border border-gray-200 rounded-xl px-2 bg-gray-50"></div>
-
-            <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2.5">
-                <div class="text-xs font-bold text-gray-500" id="editor-title">新規カテゴリ追加</div>
-                <input type="hidden" id="edit-cat-id" value="">
-                
-                <div class="flex gap-2">
-                    <div id="edit-cat-color-preview" class="w-10 h-10 rounded-xl bg-slate-400 shadow-inner flex-shrink-0 border border-black/5"></div>
-                    <input type="text" id="edit-cat-name" placeholder="カテゴリ名" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 mb-1">カラーパレット (16色)</label>
-                    <div id="color-palette-grid" class="grid grid-cols-8 gap-1.5"></div>
-                </div>
-
-                <div class="flex gap-2 pt-1">
-                    <button id="btn-cancel-edit-mode" onclick="resetCategoryEditor()" class="hidden flex-1 bg-gray-200 text-gray-600 font-bold py-2 rounded-lg text-xs hover:bg-gray-300 transition">キャンセル</button>
-                    <button onclick="saveCategory()" class="flex-1 bg-slate-700 text-white font-bold py-2 rounded-lg text-xs hover:bg-slate-800 transition">この内容で登録</button>
-                </div>
-            </div>
+      <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+          <h3 class="font-bold text-gray-700 text-sm">カテゴリ設定の編集</h3>
+          <button onclick="closeCategorySettingModal()" class="text-gray-400 hover:text-gray-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
         </div>
+
+        <div
+          id="modal-category-list"
+          class="max-h-40 overflow-y-auto custom-scrollbar divide-y divide-gray-100 border border-gray-200 rounded-xl px-2 bg-gray-50"
+        ></div>
+
+        <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2.5">
+          <div class="text-xs font-bold text-gray-500" id="editor-title">新規カテゴリ追加</div>
+          <input type="hidden" id="edit-cat-id" value="" />
+
+          <div class="flex gap-2">
+            <div id="edit-cat-color-preview" class="w-10 h-10 rounded-xl bg-slate-400 shadow-inner flex-shrink-0 border border-black/5"></div>
+            <input
+              type="text"
+              id="edit-cat-name"
+              placeholder="カテゴリ名"
+              class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-gray-400 mb-1">カラーパレット (16色)</label>
+            <div id="color-palette-grid" class="grid grid-cols-8 gap-1.5"></div>
+          </div>
+
+          <div class="flex gap-2 pt-1">
+            <button
+              id="btn-cancel-edit-mode"
+              onclick="resetCategoryEditor()"
+              class="hidden flex-1 bg-gray-200 text-gray-600 font-bold py-2 rounded-lg text-xs hover:bg-gray-300 transition"
+            >
+              キャンセル
+            </button>
+            <button onclick="saveCategory()" class="flex-1 bg-slate-700 text-white font-bold py-2 rounded-lg text-xs hover:bg-slate-800 transition">
+              この内容で登録
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
-        // supabaseの初期化
-        const supabaseUrl = 'https://wplrykemwhdqkpwjoxck.supabase.co';
-        const supabaseKey = 'sb_publishable_KRCDws1Amn3BRq5khYiKCg__BSlcwsu';
+      // supabaseの初期化
+      const supabaseUrl = 'https://wplrykemwhdqkpwjoxck.supabase.co';
+      const supabaseKey = 'sb_publishable_KRCDws1Amn3BRq5khYiKCg__BSlcwsu';
 
-        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+      const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // カラーパレット(16色)の定数定義
-        const PALETTE_COLORS = [
-            '#ef4444', '#f97316', '#f59e0b', '#eab308', 
-            '#22c55e', '#10b981', '#14b8a6', '#06b6d4',
-            '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', 
-            '#d946ef', '#ec4899', '#64748b', '#475569'
-        ];
+      // カラーパレット(16色)の定数定義
+      const PALETTE_COLORS = [
+        '#ef4444',
+        '#f97316',
+        '#f59e0b',
+        '#eab308',
+        '#22c55e',
+        '#10b981',
+        '#14b8a6',
+        '#06b6d4',
+        '#3b82f6',
+        '#6366f1',
+        '#8b5cf6',
+        '#a855f7',
+        '#d946ef',
+        '#ec4899',
+        '#64748b',
+        '#475569',
+      ];
 
-        // 初期デフォルトカテゴリ
-        const DEFAULT_CATEGORIES = [
-            { id: 'cat-1', name: '裁量', color: '#f97316' },
-            { id: 'cat-2', name: 'EA1', color: '#06b6d4' },
-            { id: 'cat-3', name: 'EA2', color: '#ec4899' },
-            { id: 'cat-4', name: 'EA3', color: '#22c55e' },
-            { id: 'cat-5', name: 'その他', color: '#64748b' }
-        ];
+      // 初期デフォルトカテゴリ
+      const DEFAULT_CATEGORIES = [
+        { id: 'cat-1', name: '裁量', color: '#f97316' },
+        { id: 'cat-2', name: 'EA1', color: '#06b6d4' },
+        { id: 'cat-3', name: 'EA2', color: '#ec4899' },
+        { id: 'cat-4', name: 'EA3', color: '#22c55e' },
+        { id: 'cat-5', name: 'その他', color: '#64748b' },
+      ];
 
-        // アプリケーション状態管理
-        let state = {
-            currentView: 'calendar',
-            currentDate: new Date(), 
-            categories: [],
-            records: [],
-            editingRecordId: null,
-            selectedFormCategoryId: null,
-            selectedEditorColor: PALETTE_COLORS[0]
-        };
+      // アプリケーション状態管理
+      let state = {
+        currentView: 'calendar',
+        currentDate: new Date(),
+        categories: [],
+        records: [],
+        editingRecordId: null,
+        selectedFormCategoryId: null,
+        selectedEditorColor: PALETTE_COLORS[0],
+      };
 
-        // 電卓ロジック用の状態
-        let calcState = {
-            isOpen: false,
-            expression: '',
-            currentInput: '0',
-            isReset: true
-        };
+      // 電卓ロジック用の状態
+      let calcState = {
+        isOpen: false,
+        expression: '',
+        currentInput: '0',
+        isReset: true,
+      };
 
-        // アプリケーション初期化
-        window.addEventListener('DOMContentLoaded', async () => {
-            if (await checkAuth()) {
-                await initDataFromSupabase();
-                initColorPaletteUI();
-                setupKeyboardListeners();
-                switchView('calendar');
-                lucide.createIcons();
-            }
+      // アプリケーション初期化
+      window.addEventListener('DOMContentLoaded', async () => {
+        if (await checkAuth()) {
+          await initDataFromSupabase();
+          initColorPaletteUI();
+          setupKeyboardListeners();
+          switchView('calendar');
+          lucide.createIcons();
+        }
+      });
+
+      // ログイン
+      async function handleLogin() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        const { error: loginError } = await supabaseClient.auth.signInWithPassword({
+          email: email,
+          password: password,
         });
 
-        // ログイン
-        async function handleLogin() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+        if (!loginError) {
+          document.getElementById('login-view').classList.add('hidden');
+          location.reload();
+        } else {
+          alert('ログイン失敗: ' + loginError.message);
+        }
+      }
 
-            const { error: loginError } = await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password,
+      async function checkAuth() {
+        const {
+          data: { session },
+        } = await supabaseClient.auth.getSession();
+        if (session) {
+          document.getElementById('login-view').classList.add('hidden');
+          return true;
+        }
+        return false;
+      }
+
+      // データアクセス
+      async function initDataFromSupabase() {
+        const { data: cats, error: catError } = await supabaseClient.from('categories').select('*');
+
+        if (!catError && cats.length) {
+          state.categories = cats.map((c) => {
+            const { user_id, ...rest } = c;
+            return rest;
+          });
+        } else {
+          state.categories = [...DEFAULT_CATEGORIES];
+          await saveCategoriesToSupabase();
+        }
+
+        await loadRecordsFromSupabase();
+      }
+
+      async function saveCategoriesToSupabase() {
+        const {
+          data: { user },
+        } = await supabaseClient.auth.getUser();
+
+        const cats = state.categories.map((c) => ({
+          ...c,
+          user_id: user.id,
+        }));
+
+        try {
+          const { error: delError } = await supabaseClient.from('categories').delete().eq('user_id', user.id);
+          if (delError) throw delError;
+
+          const { error: insError } = await supabaseClient.from('categories').upsert(cats);
+          if (insError) throw insError;
+
+          await loadCategoriesFromSupabase();
+        } catch (e) {
+          alert('カテゴリの保存に失敗しました。');
+        }
+      }
+
+      async function loadCategoriesFromSupabase() {
+        const { data: cats, error: catError } = await supabaseClient.from('categories').select('*');
+
+        if (!catError && cats.length) {
+          state.categories = cats.map((c) => {
+            const { user_id, ...rest } = c;
+            return rest;
+          });
+        } else {
+          alert('カテゴリの読込に失敗しました。');
+        }
+      }
+
+      async function saveRecordsToSupabase() {
+        const {
+          data: { user },
+        } = await supabaseClient.auth.getUser();
+
+        const recs = state.records.map((r) => ({
+          ...r,
+          user_id: user.id,
+        }));
+
+        try {
+          const { error: delError } = await supabaseClient.from('records').delete().eq('user_id', user.id);
+          if (delError) throw delError;
+
+          const { error: insError } = await supabaseClient.from('records').upsert(recs);
+          if (insError) throw insError;
+
+          await loadRecordsFromSupabase();
+        } catch (e) {
+          alert('取引データの保存に失敗しました。');
+        }
+      }
+
+      async function loadRecordsFromSupabase() {
+        const { data: recs, error: recError } = await supabaseClient.from('records').select('*');
+        if (!recError) {
+          if (recs.length) {
+            state.records = recs.map((r) => {
+              const { user_id, ...rest } = r;
+              return rest;
             });
+          } else {
+            state.records = [];
+          }
+        } else {
+          alert('取引データの読込に失敗しました。');
+        }
+      }
 
-            if (!loginError) {
-                document.getElementById('login-view').classList.add('hidden');
-                location.reload();
+      function exportDataToJson() {
+        const data = {
+          exportedAt: new Date().toISOString(),
+          categories: state.categories,
+          records: state.records,
+        };
+
+        const jsonString = JSON.stringify(data, null, 2);
+
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `trade_flow_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+      }
+
+      function importDataFromJson(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (!confirm('現在のデータはすべて上書きされます。よろしいですか？')) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const imported = JSON.parse(e.target.result);
+
+            if (imported.categories && imported.records) {
+              state.categories = imported.categories;
+              state.records = imported.records;
+
+              await saveCategoriesToSupabase();
+              await saveRecordsToSupabase();
+
+              alert('データの復元が完了しました。ページをリロードします。');
+              location.reload();
             } else {
-                alert("ログイン失敗: " + loginError.message);
+              alert('無効なファイル形式です。正しいバックアップファイルを選択してください。');
             }
+          } catch (e) {
+            alert('データの読み込みに失敗しました。ファイルが壊れている可能性があります。');
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      async function resetAllData() {
+        if (!confirm('全ての取引データおよびカテゴリ設定が完全に削除されます。本当によろしいですか？')) {
+          return;
         }
 
-        async function checkAuth() {
-            const {data: {session}} = await supabaseClient.auth.getSession();
-            if (session) {
-                document.getElementById('login-view').classList.add('hidden');
-                return true;
+        try {
+          state.categories = [...DEFAULT_CATEGORIES];
+          await saveCategoriesToSupabase();
+
+          state.records = [];
+          await saveRecordsToSupabase();
+        } catch (e) {
+          alert('データの初期化に失敗しました。');
+          return;
+        }
+
+        alert('データを全てリセットしました。初期状態に戻ります。');
+
+        location.reload();
+      }
+
+      // 汎用関数
+      function formatDisplayAmount(num) {
+        const str = Math.abs(num).toLocaleString('ja-JP');
+        return num < 0 ? `¥-${str}` : `¥${str}`;
+      }
+
+      function getAmountColorClass(num) {
+        return num >= 0 ? 'text-blue-600' : 'text-red-500';
+      }
+
+      // 月切り替え
+      function changeMonth(dir) {
+        state.currentDate.setMonth(state.currentDate.getMonth() + dir);
+
+        viewName = state.currentView;
+
+        if (viewName === 'calendar') {
+          renderCalendarView();
+        } else if (viewName === 'report') {
+          renderReportGraphView();
+        }
+      }
+
+      function resetToCurrentMonth() {
+        state.currentDate = new Date();
+
+        viewName = state.currentView;
+
+        if (viewName === 'calendar') {
+          renderCalendarView();
+        } else if (viewName === 'report') {
+          renderReportGraphView();
+        }
+      }
+
+      // スワイプによる月切り替え
+      function enableSwipe(element, onLeft, onRight) {
+        let startX, startY;
+
+        element.addEventListener(
+          'touchstart',
+          (e) => {
+            startX = e.touches[0].screenX;
+            startY = e.touches[0].screenY;
+          },
+          { passive: true },
+        );
+
+        element.addEventListener(
+          'touchend',
+          (e) => {
+            const endX = e.changedTouches[0].screenX;
+            const endY = e.changedTouches[0].screenY;
+
+            const diffX = startX - endX;
+            const diffY = startY - endY;
+
+            // 横移動が縦移動より大きく、かつ一定距離以上動いた場合
+            if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+              if (diffX > 0) {
+                onLeft();
+              } else {
+                onRight();
+              }
             }
-            return false;
+          },
+          { passive: true },
+        );
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        // カレンダー画面のスワイプ設定
+        const calArea = document.getElementById('calendar-swipe-area');
+        if (calArea) {
+          enableSwipe(
+            calArea,
+            () => changeMonth(1),
+            () => changeMonth(-1),
+          );
         }
 
-        // データアクセス
-        async function initDataFromSupabase() {
-            const {data: cats, error: catError} = await supabaseClient.from('categories').select('*');
-
-            if (!catError && cats.length) {
-                state.categories = cats.map(c => {
-                    const {user_id, ...rest} = c;
-                    return rest;
-                });
-            } else {
-                state.categories = [...DEFAULT_CATEGORIES];
-                await saveCategoriesToSupabase();
-            }
-
-            await loadRecordsFromSupabase();
+        // レポート画面のスワイプ設定
+        const repArea = document.getElementById('view-report');
+        if (repArea) {
+          enableSwipe(
+            repArea,
+            () => changeMonth(1),
+            () => changeMonth(-1),
+          );
         }
+      });
 
-        async function saveCategoriesToSupabase() {
-            const {data: {user}} = await supabaseClient.auth.getUser();
+      // 画面表示
+      function switchView(viewName) {
+        state.currentView = viewName;
 
-            const cats = state.categories.map(c => ({
-                ...c,
-                user_id: user.id
-            }));
+        document.getElementById('view-calendar').classList.toggle('hidden', viewName !== 'calendar');
+        document.getElementById('view-input').classList.toggle('hidden', viewName !== 'input');
+        document.getElementById('view-report').classList.toggle('hidden', viewName !== 'report');
+        document.getElementById('view-settings').classList.toggle('hidden', viewName !== 'settings');
 
-            try {
-                const {error: delError} = await supabaseClient.from('categories').delete().eq('user_id', user.id);
-                if (delError) throw delError;
-
-                const {error: insError} = await supabaseClient.from('categories').upsert(cats);
-                if (insError) throw insError;
-
-                await loadCategoriesFromSupabase();
-            } catch(e) {
-                alert("カテゴリの保存に失敗しました。");
-            }
-        }
-
-        async function loadCategoriesFromSupabase() {
-            const {data: cats, error: catError} = await supabaseClient.from('categories').select('*');
-
-            if (!catError && cats.length) {
-                state.categories = cats.map(c => {
-                    const {user_id, ...rest} = c;
-                    return rest;
-                });
-            } else {
-                alert("カテゴリの読込に失敗しました。");
-            }
-        }
-
-        async function saveRecordsToSupabase() {
-            const {data: {user}} = await supabaseClient.auth.getUser();
-
-            const recs = state.records.map(r => ({
-                ...r,
-                user_id: user.id
-            }));
-
-            try {
-                const {error: delError} = await supabaseClient.from('records').delete().eq('user_id', user.id);
-                if (delError) throw delError;
-
-                const {error: insError} = await supabaseClient.from('records').upsert(recs);
-                if (insError) throw insError;
-
-                await loadRecordsFromSupabase();
-            } catch(e) {
-                alert("取引データの保存に失敗しました。");
-            }           
-        }
-
-        async function loadRecordsFromSupabase() {
-            const {data: recs, error: recError} = await supabaseClient.from('records').select('*');
-            if (!recError) {
-                if (recs.length) {
-                    state.records = recs.map(r => {
-                        const {user_id, ...rest} = r;
-                        return rest;
-                   });
-                } else {
-                    state.records = [];
-                }
-            } else {
-                alert("取引データの読込に失敗しました。");
-            }
-        }
-
-        function exportDataToJson() {
-            const data = {
-                exportedAt: new Date().toISOString(),
-                categories: state.categories,
-                records: state.records
-            };
-
-            const jsonString = JSON.stringify(data, null, 2);
-
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `trade_flow_backup_${new Date().toISOString().slice(0, 10)}.json`;
-            a.click();
-
-            URL.revokeObjectURL(url);
-        }
-
-        function importDataFromJson(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (!confirm("現在のデータはすべて上書きされます。よろしいですか？")) return;
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const imported = JSON.parse(e.target.result);
-
-                    if (imported.categories && imported.records) {
-                        state.categories = imported.categories;
-                        state.records = imported.records;
-
-                        await saveCategoriesToSupabase();
-                        await saveRecordsToSupabase();
-                        
-                        alert("データの復元が完了しました。ページをリロードします。");
-                        location.reload();
-                    } else {
-                        alert("無効なファイル形式です。正しいバックアップファイルを選択してください。");
-                    }
-                } catch (e) {
-                    alert("データの読み込みに失敗しました。ファイルが壊れている可能性があります。");
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        async function resetAllData() {
-            if (!confirm("全ての取引データおよびカテゴリ設定が完全に削除されます。本当によろしいですか？")) {
-                return;
-            }
-
-            try {
-                state.categories = [...DEFAULT_CATEGORIES];
-                await saveCategoriesToSupabase();
-
-                state.records = [];
-                await saveRecordsToSupabase();
-            } catch (e) {
-                alert("データの初期化に失敗しました。");
-                return;
-            }
-
-            alert("データを全てリセットしました。初期状態に戻ります。");
-
-            location.reload();
-        }
-
-        // 汎用関数
-        function formatDisplayAmount(num) {
-            const str = Math.abs(num).toLocaleString('ja-JP');
-            return num < 0 ? `¥-${str}` : `¥${str}`;
-        }
-
-        function getAmountColorClass(num) {
-            return num >= 0 ? 'text-blue-600' : 'text-red-500';
-        }
-
-        // 月切り替え
-        function changeMonth(dir) {
-            state.currentDate.setMonth(state.currentDate.getMonth() + dir);
-
-            viewName = state.currentView;
-
-            if (viewName === 'calendar') {
-                renderCalendarView();
-            } else if (viewName === 'report') {
-                renderReportGraphView();
-            }
-        }
-
-        function resetToCurrentMonth() {
-            state.currentDate = new Date();
-
-            viewName = state.currentView;
-
-            if (viewName === 'calendar') {
-                renderCalendarView();
-            } else if (viewName === 'report') {
-                renderReportGraphView();
-            }
-        }
-
-        // スワイプによる月切り替え
-        function enableSwipe(element, onLeft, onRight) {
-            let startX, startY;
-
-            element.addEventListener('touchstart', (e) => {
-                startX = e.touches[0].screenX;
-                startY = e.touches[0].screenY;
-            }, { passive: true });
-
-            element.addEventListener('touchend', (e) => {
-                const endX = e.changedTouches[0].screenX;
-                const endY = e.changedTouches[0].screenY;
-
-                const diffX = startX - endX;
-                const diffY = startY - endY;
-
-                // 横移動が縦移動より大きく、かつ一定距離以上動いた場合
-                if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-                    if (diffX > 0) {
-                        onLeft();
-                    } else {
-                        onRight();
-                    }
-                }
-            }, { passive: true });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // カレンダー画面のスワイプ設定
-            const calArea = document.getElementById('calendar-swipe-area');
-            if (calArea) {
-                enableSwipe(calArea, () => changeMonth(1), () => changeMonth(-1));
-            }
-
-            // レポート画面のスワイプ設定
-            const repArea = document.getElementById('view-report'); 
-            if (repArea) {
-                enableSwipe(repArea, () => changeMonth(1), () => changeMonth(-1));
-            }
+        ['calendar', 'input', 'report', 'settings'].forEach((v) => {
+          const navBtn = document.getElementById(`nav-${v}`);
+          if (v === viewName) {
+            navBtn.classList.remove('text-gray-400', 'font-medium', 'hover:text-gray-600');
+            navBtn.classList.add('text-indigo-600', 'font-bold');
+          } else {
+            navBtn.classList.remove('text-indigo-600', 'font-bold');
+            navBtn.classList.add('text-gray-400', 'font-medium', 'hover:text-gray-600');
+          }
         });
 
-        // 画面表示
-        function switchView(viewName) {
-            state.currentView = viewName;
+        if (viewName === 'calendar') {
+          renderCalendarView();
+        } else if (viewName === 'input') {
+          renderInputView();
+        } else if (viewName === 'report') {
+          renderReportGraphView();
+        } else if (viewName === 'settings') {
+        }
+      }
 
-            document.getElementById('view-calendar').classList.toggle('hidden', viewName !== 'calendar');
-            document.getElementById('view-input').classList.toggle('hidden', viewName !== 'input');
-            document.getElementById('view-report').classList.toggle('hidden', viewName !== 'report');
-            document.getElementById('view-settings').classList.toggle('hidden', viewName !== 'settings');
+      // カレンダー画面
+      function renderCalendarView() {
+        const targetYear = state.currentDate.getFullYear();
+        const targetMonth = state.currentDate.getMonth();
 
-            ['calendar', 'input', 'report', 'settings'].forEach(v => {
-                const navBtn = document.getElementById(`nav-${v}`);
-                if (v === viewName) {
-                    navBtn.classList.remove('text-gray-400', 'font-medium', 'hover:text-gray-600');
-                    navBtn.classList.add('text-indigo-600', 'font-bold');
-                } else {
-                    navBtn.classList.remove('text-indigo-600', 'font-bold');
-                    navBtn.classList.add('text-gray-400', 'font-medium', 'hover:text-gray-600');
-                }
-            });
+        document.getElementById('calendar-month-title').textContent = `${targetYear}年 ${targetMonth + 1}月`;
 
-            if (viewName === 'calendar') {
-                renderCalendarView();
-            } else if (viewName === 'input') {
-                renderInputView();
-            } else if (viewName === 'report') {
-                renderReportGraphView();
-            } else if (viewName === 'settings') {
-            }
+        const firstDayIndex = new Date(targetYear, targetMonth, 1).getDay();
+        const totalDaysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+        const totalDaysInPrevMonth = new Date(targetYear, targetMonth, 0).getDate();
+
+        const gridContainer = document.getElementById('calendar-grid');
+        gridContainer.innerHTML = '';
+
+        const recordsInMonth = state.records.filter((r) => {
+          const d = new Date(r.date);
+          return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
+        });
+
+        const dailyBalances = {};
+        recordsInMonth.forEach((r) => {
+          const dayNum = new Date(r.date).getDate();
+          dailyBalances[dayNum] = (dailyBalances[dayNum] || 0) + r.amount;
+        });
+
+        let totalIncome = 0;
+        let totalExpense = 0;
+        recordsInMonth.forEach((r) => {
+          if (r.amount >= 0) totalIncome += r.amount;
+          else totalExpense += r.amount;
+        });
+        const netGrandTotal = totalIncome + totalExpense;
+
+        document.getElementById('calendar-income').textContent = formatDisplayAmount(totalIncome);
+        document.getElementById('calendar-expense').textContent = formatDisplayAmount(totalExpense);
+
+        const totalContainer = document.getElementById('calendar-total');
+        totalContainer.textContent = formatDisplayAmount(netGrandTotal);
+        totalContainer.className = `font-bold text-sm mt-0.5 ${getAmountColorClass(netGrandTotal)}`;
+
+        const systemToday = new Date();
+
+        for (let i = firstDayIndex - 1; i >= 0; i--) {
+          const d = totalDaysInPrevMonth - i;
+          const cell = document.createElement('div');
+          cell.className = 'bg-gray-50 border border-gray-100 min-h-[38px] p-1 text-[10px] text-gray-300 opacity-60 rounded-lg';
+          cell.textContent = d;
+          gridContainer.appendChild(cell);
         }
 
-        // カレンダー画面
-        function renderCalendarView() {
-            const targetYear = state.currentDate.getFullYear();
-            const targetMonth = state.currentDate.getMonth();
+        for (let day = 1; day <= totalDaysInMonth; day++) {
+          const currentIterationDate = new Date(targetYear, targetMonth, day);
+          const weekdayIndex = currentIterationDate.getDay();
 
-            document.getElementById('calendar-month-title').textContent = `${targetYear}年 ${targetMonth + 1}月`;
+          const cell = document.createElement('div');
 
-            const firstDayIndex = new Date(targetYear, targetMonth, 1).getDay();
-            const totalDaysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-            const totalDaysInPrevMonth = new Date(targetYear, targetMonth, 0).getDate();
+          let dayColorClass = 'text-gray-700';
+          if (weekdayIndex === 0) dayColorClass = 'text-red-500';
+          if (weekdayIndex === 6) dayColorClass = 'text-blue-500';
 
-            const gridContainer = document.getElementById('calendar-grid');
-            gridContainer.innerHTML = '';
+          let borderStyleClass = 'border border-gray-100';
+          const isTodayMatch = systemToday.getFullYear() === targetYear && systemToday.getMonth() === targetMonth && systemToday.getDate() === day;
+          if (isTodayMatch) {
+            borderStyleClass = 'border-2 border-indigo-600 ring-2 ring-indigo-600/10';
+          }
 
-            const recordsInMonth = state.records.filter(r => {
-                const d = new Date(r.date);
-                return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
-            });
+          cell.className = `bg-white ${borderStyleClass} min-h-[38px] p-1 rounded-xl flex flex-col justify-between cursor-pointer hover:bg-indigo-50/50 transition relative`;
 
-            const dailyBalances = {};
-            recordsInMonth.forEach(r => {
-                const dayNum = new Date(r.date).getDate();
-                dailyBalances[dayNum] = (dailyBalances[dayNum] || 0) + r.amount;
-            });
+          const dayHeader = document.createElement('div');
+          dayHeader.className = `text-[10px] font-bold ${dayColorClass}`;
+          dayHeader.textContent = day;
+          cell.appendChild(dayHeader);
 
-            let totalIncome = 0;
-            let totalExpense = 0;
-            recordsInMonth.forEach(r => {
-                if (r.amount >= 0) totalIncome += r.amount;
-                else totalExpense += r.amount;
-            });
-            const netGrandTotal = totalIncome + totalExpense;
+          const hasRecords = dailyBalances.hasOwnProperty(day);
 
-            document.getElementById('calendar-income').textContent = formatDisplayAmount(totalIncome);
-            document.getElementById('calendar-expense').textContent = formatDisplayAmount(totalExpense);
+          if (hasRecords) {
+            const balanceVal = dailyBalances[day] || 0;
+            const amtLabel = document.createElement('div');
+            amtLabel.className = `text-[8px] font-extrabold tracking-tighter truncate text-center w-full ${getAmountColorClass(balanceVal)}`;
+            amtLabel.textContent = formatDisplayAmount(balanceVal);
+            cell.appendChild(amtLabel);
 
-            const totalContainer = document.getElementById('calendar-total');
-            totalContainer.textContent = formatDisplayAmount(netGrandTotal);
-            totalContainer.className = `font-bold text-sm mt-0.5 ${getAmountColorClass(netGrandTotal)}`;
-
-            const systemToday = new Date();
-
-            for (let i = firstDayIndex - 1; i >= 0; i--) {
-                const d = totalDaysInPrevMonth - i;
-                const cell = document.createElement('div');
-                cell.className = "bg-gray-50 border border-gray-100 min-h-[38px] p-1 text-[10px] text-gray-300 opacity-60 rounded-lg";
-                cell.textContent = d;
-                gridContainer.appendChild(cell);
+            if (window.matchMedia('(pointer: fine)').matches) {
+              cell.addEventListener('mousemove', (e) => showCalendarTooltip(e, balanceVal));
+              cell.addEventListener('mouseleave', hideCalendarTooltip);
             }
+          } else {
+            const spacer = document.createElement('div');
+            cell.appendChild(spacer);
+          }
 
-            for (let day = 1; day <= totalDaysInMonth; day++) {
-                const currentIterationDate = new Date(targetYear, targetMonth, day);
-                const weekdayIndex = currentIterationDate.getDay();
+          cell.onclick = () => {
+            const mStr = String(targetMonth + 1).padStart(2, '0');
+            const dStr = String(day).padStart(2, '0');
+            prepareNewInputView(`${targetYear}-${mStr}-${dStr}`);
+          };
 
-                const cell = document.createElement('div');
-                
-                let dayColorClass = "text-gray-700";
-                if (weekdayIndex === 0) dayColorClass = "text-red-500";
-                if (weekdayIndex === 6) dayColorClass = "text-blue-500";
-
-                let borderStyleClass = "border border-gray-100";
-                const isTodayMatch = systemToday.getFullYear() === targetYear && 
-                                     systemToday.getMonth() === targetMonth && 
-                                     systemToday.getDate() === day;
-                if (isTodayMatch) {
-                    borderStyleClass = "border-2 border-indigo-600 ring-2 ring-indigo-600/10";
-                }
-
-                cell.className = `bg-white ${borderStyleClass} min-h-[38px] p-1 rounded-xl flex flex-col justify-between cursor-pointer hover:bg-indigo-50/50 transition relative`;
-                
-                const dayHeader = document.createElement('div');
-                dayHeader.className = `text-[10px] font-bold ${dayColorClass}`;
-                dayHeader.textContent = day;
-                cell.appendChild(dayHeader);
-
-                const hasRecords = dailyBalances.hasOwnProperty(day);
-
-                if (hasRecords) {
-                    const balanceVal = dailyBalances[day] || 0;
-                    const amtLabel = document.createElement('div');
-                    amtLabel.className = `text-[8px] font-extrabold tracking-tighter truncate text-center w-full ${getAmountColorClass(balanceVal)}`;
-                    amtLabel.textContent = formatDisplayAmount(balanceVal);
-                    cell.appendChild(amtLabel);
-
-                    if (window.matchMedia('(pointer: fine)').matches) {
-                        cell.addEventListener('mousemove', (e) => showCalendarTooltip(e, balanceVal));
-                        cell.addEventListener('mouseleave', hideCalendarTooltip);
-                    }
-                } else {
-                    const spacer = document.createElement('div');
-                    cell.appendChild(spacer);
-                }
-
-                cell.onclick = () => {
-                    const mStr = String(targetMonth + 1).padStart(2, '0');
-                    const dStr = String(day).padStart(2, '0');
-                    prepareNewInputView(`${targetYear}-${mStr}-${dStr}`);
-                };
-
-                gridContainer.appendChild(cell);
-            }
-
-            renderHistoryListSection(recordsInMonth);
+          gridContainer.appendChild(cell);
         }
 
-        // カレンダーのツールチップ
-        function showCalendarTooltip(e, amount) {
-            const tooltip = document.getElementById('calendar-tooltip');
-            tooltip.textContent = formatDisplayAmount(amount);
-            
-            const bgClass = amount >= 0 ? 'bg-blue-600' : 'bg-red-500';
-            tooltip.className = `fixed ${bgClass} text-white font-bold text-base px-3 py-1.5 rounded-xl shadow-xl pointer-events-none z-50 transition-opacity duration-150`;
-            
-            tooltip.style.left = `${e.clientX + 10}px`;
-            tooltip.style.top = `${e.clientY - 40}px`;
-            tooltip.classList.remove('hidden');
+        renderHistoryListSection(recordsInMonth);
+      }
+
+      // カレンダーのツールチップ
+      function showCalendarTooltip(e, amount) {
+        const tooltip = document.getElementById('calendar-tooltip');
+        tooltip.textContent = formatDisplayAmount(amount);
+
+        const bgClass = amount >= 0 ? 'bg-blue-600' : 'bg-red-500';
+        tooltip.className = `fixed ${bgClass} text-white font-bold text-base px-3 py-1.5 rounded-xl shadow-xl pointer-events-none z-50 transition-opacity duration-150`;
+
+        tooltip.style.left = `${e.clientX + 10}px`;
+        tooltip.style.top = `${e.clientY - 40}px`;
+        tooltip.classList.remove('hidden');
+      }
+
+      function hideCalendarTooltip() {
+        document.getElementById('calendar-tooltip').classList.add('hidden');
+      }
+
+      // レコード履歴
+      function renderHistoryListSection(records) {
+        const listContainer = document.getElementById('history-container');
+        listContainer.innerHTML = '';
+
+        if (records.length === 0) {
+          listContainer.innerHTML = '<div class="p-8 text-center text-xs text-gray-400">取引履歴はありません</div>';
+          return;
         }
 
-        function hideCalendarTooltip() {
-            document.getElementById('calendar-tooltip').classList.add('hidden');
-        }
+        const groups = {};
+        records.forEach((rec) => {
+          if (!groups[rec.date]) groups[rec.date] = [];
+          groups[rec.date].push(rec);
+        });
 
-        // レコード履歴
-        function renderHistoryListSection(records) {
-            const listContainer = document.getElementById('history-container');
-            listContainer.innerHTML = '';
+        const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
-            if (records.length === 0) {
-                listContainer.innerHTML = '<div class="p-8 text-center text-xs text-gray-400">取引履歴はありません</div>';
-                return;
-            }
+        sortedDates.forEach((dateStr) => {
+          const items = groups[dateStr];
 
-            const groups = {};
-            records.forEach(rec => {
-                if (!groups[rec.date]) groups[rec.date] = [];
-                groups[rec.date].push(rec);
-            });
+          items.sort((a, b) => {
+            const indexA = state.categories.findIndex((c) => c.id === a.category_id);
+            const indexB = state.categories.findIndex((c) => c.id === b.category_id);
+            return indexA - indexB;
+          });
 
-            const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+          const dayTotal = items.reduce((sum, item) => sum + item.amount, 0);
+          const d = new Date(dateStr);
+          const header = document.createElement('div');
+          header.className = 'bg-gray-100 px-3 py-2 flex items-center justify-between text-xs font-bold text-gray-600 sticky top-0 z-10';
+          header.innerHTML = `<span>${d.getMonth() + 1}月${d.getDate()}日</span><span>${formatDisplayAmount(dayTotal)}</span>`;
+          listContainer.appendChild(header);
 
-            sortedDates.forEach(dateStr => {
-                const items = groups[dateStr];
-
-                items.sort((a, b) => {
-                    const indexA = state.categories.findIndex(c => c.id === a.category_id);
-                    const indexB = state.categories.findIndex(c => c.id === b.category_id);
-                    return indexA - indexB;
-                });
-
-                const dayTotal = items.reduce((sum, item) => sum + item.amount, 0);
-                const d = new Date(dateStr);
-                const header = document.createElement('div');
-                header.className = "bg-gray-100 px-3 py-2 flex items-center justify-between text-xs font-bold text-gray-600 sticky top-0 z-10";
-                header.innerHTML = `<span>${d.getMonth()+1}月${d.getDate()}日</span><span>${formatDisplayAmount(dayTotal)}</span>`;
-                listContainer.appendChild(header);
-
-                items.forEach(item => {
-                    const cat = state.categories.find(c => c.id === item.category_id) || { name: 'その他', color: '#64748b' };
-                    const div = document.createElement('div');
-                    div.className = "p-3 flex items-center justify-between hover:bg-slate-50 cursor-pointer";
-                    div.onclick = () => prepareEditInputView(item.id);
-                    div.innerHTML = `
+          items.forEach((item) => {
+            const cat = state.categories.find((c) => c.id === item.category_id) || { name: 'その他', color: '#64748b' };
+            const div = document.createElement('div');
+            div.className = 'p-3 flex items-center justify-between hover:bg-slate-50 cursor-pointer';
+            div.onclick = () => prepareEditInputView(item.id);
+            div.innerHTML = `
                         <div class="flex items-center gap-2">
                             <div class="w-3 h-3 rounded-full" style="background-color: ${cat.color}"></div>
                             <span class="text-xs font-bold">${cat.name}</span>
                         </div>
                         <span class="text-xs font-bold ${getAmountColorClass(item.amount)}">${formatDisplayAmount(item.amount)}</span>
                     `;
-                    listContainer.appendChild(div);
-                });
-            });
-        }
+            listContainer.appendChild(div);
+          });
+        });
+      }
 
-        // 入力画面
-        function renderInputView() {
-            const grid = document.getElementById('form-category-grid');
-            grid.innerHTML = '';
+      // 入力画面
+      function renderInputView() {
+        const grid = document.getElementById('form-category-grid');
+        grid.innerHTML = '';
 
-            state.categories.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.type = "button";
-                
-                const isSelected = state.selectedFormCategoryId === cat.id;
-                const borderActiveStyle = isSelected ? `border-2 border-indigo-600 bg-indigo-50/50 shadow-sm` : `border border-gray-200 hover:border-gray-300 bg-white`;
-                
-                btn.className = `flex flex-col items-center justify-center p-1 rounded-xl transition ${borderActiveStyle}`;
-                btn.onclick = () => {
-                    state.selectedFormCategoryId = cat.id;
-                    renderInputView();
-                };
+        state.categories.forEach((cat) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
 
-                const dot = document.createElement('div');
-                dot.className = "w-4 h-4 rounded-full mb-1 shadow-inner border border-black/5";
-                dot.style.backgroundColor = cat.color;
+          const isSelected = state.selectedFormCategoryId === cat.id;
+          const borderActiveStyle = isSelected
+            ? `border-2 border-indigo-600 bg-indigo-50/50 shadow-sm`
+            : `border border-gray-200 hover:border-gray-300 bg-white`;
 
-                const lbl = document.createElement('span');
-                lbl.className = "text-[10px] font-medium text-gray-600 truncate max-w-full px-0.5";
-                lbl.textContent = cat.name;
-
-                btn.appendChild(dot);
-                btn.appendChild(lbl);
-                grid.appendChild(btn);
-            });
-        }
-
-        // 新規入力（入力画面前処理）
-        function prepareNewInputView(targetDateStr = null) {
-            state.editingRecordId = null;
-            document.getElementById('input-view-title').textContent = "取引の入力";
-            document.getElementById('btn-delete-record').classList.add('hidden');
-            
-            let yyyy, mm, dd;
-            if (targetDateStr) {
-                const parts = targetDateStr.split('-');
-                yyyy = parts[0];
-                mm = parts[1];
-                dd = parts[2];
-            } else {
-                const today = new Date();
-                yyyy = today.getFullYear();
-                mm = String(today.getMonth() + 1).padStart(2, '0');
-                dd = String(today.getDate()).padStart(2, '0');
-            }
-
-            document.getElementById('form-date').value = `${yyyy}-${mm}-${dd}`;
-            document.getElementById('form-amount').value = "0";
-            document.getElementById('form-memo').value = "";
-
-            if (state.categories.length > 0) {
-                state.selectedFormCategoryId = state.categories[0].id;
-            } else {
-                state.selectedFormCategoryId = null;
-            }
-
-            switchView('input');
-        }
-
-        // レコード編集（入力画面前処理）
-        function prepareEditInputView(recordId) {
-            const target = state.records.find(r => r.id === recordId);
-            if (!target) return;
-
-            state.editingRecordId = target.id;
-            document.getElementById('input-view-title').textContent = "取引の編集";
-            document.getElementById('btn-delete-record').classList.remove('hidden');
-
-            document.getElementById('form-date').value = target.date;
-            document.getElementById('form-amount').value = target.amount.toString();
-            document.getElementById('form-memo').value = target.memo || "";
-            state.selectedFormCategoryId = target.category_id;
-
-            switchView('input');
-        }
-
-        // カテゴリ編集
-        function openCategorySettingModal() {
-            resetCategoryEditor();
-            renderModalCategoryList();
-            document.getElementById('modal-category').classList.remove('hidden');
-            document.getElementById('modal-category').classList.add('flex');
-        }
-
-        function closeCategorySettingModal() {
-            document.getElementById('modal-category').classList.add('hidden');
-            document.getElementById('modal-category').classList.remove('flex');
+          btn.className = `flex flex-col items-center justify-center p-1 rounded-xl transition ${borderActiveStyle}`;
+          btn.onclick = () => {
+            state.selectedFormCategoryId = cat.id;
             renderInputView();
+          };
+
+          const dot = document.createElement('div');
+          dot.className = 'w-4 h-4 rounded-full mb-1 shadow-inner border border-black/5';
+          dot.style.backgroundColor = cat.color;
+
+          const lbl = document.createElement('span');
+          lbl.className = 'text-[10px] font-medium text-gray-600 truncate max-w-full px-0.5';
+          lbl.textContent = cat.name;
+
+          btn.appendChild(dot);
+          btn.appendChild(lbl);
+          grid.appendChild(btn);
+        });
+      }
+
+      // 新規入力（入力画面前処理）
+      function prepareNewInputView(targetDateStr = null) {
+        state.editingRecordId = null;
+        document.getElementById('input-view-title').textContent = '取引の入力';
+        document.getElementById('btn-delete-record').classList.add('hidden');
+
+        let yyyy, mm, dd;
+        if (targetDateStr) {
+          const parts = targetDateStr.split('-');
+          yyyy = parts[0];
+          mm = parts[1];
+          dd = parts[2];
+        } else {
+          const today = new Date();
+          yyyy = today.getFullYear();
+          mm = String(today.getMonth() + 1).padStart(2, '0');
+          dd = String(today.getDate()).padStart(2, '0');
         }
 
-        // カテゴリ編集の初期化
-        function resetCategoryEditor() {
-            document.getElementById('edit-cat-id').value = "";
-            document.getElementById('edit-cat-name').value = "";
-            state.selectedEditorColor = PALETTE_COLORS[0];
-            
-            document.getElementById('editor-title').textContent = "新規カテゴリ追加";
-            document.getElementById('btn-cancel-edit-mode').classList.add('hidden');
-            
+        document.getElementById('form-date').value = `${yyyy}-${mm}-${dd}`;
+        document.getElementById('form-amount').value = '0';
+        document.getElementById('form-memo').value = '';
+
+        if (state.categories.length > 0) {
+          state.selectedFormCategoryId = state.categories[0].id;
+        } else {
+          state.selectedFormCategoryId = null;
+        }
+
+        switchView('input');
+      }
+
+      // レコード編集（入力画面前処理）
+      function prepareEditInputView(recordId) {
+        const target = state.records.find((r) => r.id === recordId);
+        if (!target) return;
+
+        state.editingRecordId = target.id;
+        document.getElementById('input-view-title').textContent = '取引の編集';
+        document.getElementById('btn-delete-record').classList.remove('hidden');
+
+        document.getElementById('form-date').value = target.date;
+        document.getElementById('form-amount').value = target.amount.toString();
+        document.getElementById('form-memo').value = target.memo || '';
+        state.selectedFormCategoryId = target.category_id;
+
+        switchView('input');
+      }
+
+      // カテゴリ編集
+      function openCategorySettingModal() {
+        resetCategoryEditor();
+        renderModalCategoryList();
+        document.getElementById('modal-category').classList.remove('hidden');
+        document.getElementById('modal-category').classList.add('flex');
+      }
+
+      function closeCategorySettingModal() {
+        document.getElementById('modal-category').classList.add('hidden');
+        document.getElementById('modal-category').classList.remove('flex');
+        renderInputView();
+      }
+
+      // カテゴリ編集の初期化
+      function resetCategoryEditor() {
+        document.getElementById('edit-cat-id').value = '';
+        document.getElementById('edit-cat-name').value = '';
+        state.selectedEditorColor = PALETTE_COLORS[0];
+
+        document.getElementById('editor-title').textContent = '新規カテゴリ追加';
+        document.getElementById('btn-cancel-edit-mode').classList.add('hidden');
+
+        initColorPaletteUI();
+      }
+
+      // カテゴリパレットの初期化
+      function initColorPaletteUI() {
+        const grid = document.getElementById('color-palette-grid');
+        grid.innerHTML = '';
+        PALETTE_COLORS.forEach((color) => {
+          const item = document.createElement('div');
+          item.className = 'w-full aspect-square rounded-lg cursor-pointer border-2 transition transform active:scale-95';
+          item.style.backgroundColor = color;
+
+          if (state.selectedEditorColor === color) {
+            item.classList.add('border-slate-800', 'scale-105', 'shadow-md');
+          } else {
+            item.classList.add('border-transparent', 'hover:border-gray-300');
+          }
+
+          item.onclick = () => {
+            state.selectedEditorColor = color;
+            document.getElementById('edit-cat-color-preview').style.backgroundColor = color;
             initColorPaletteUI();
+          };
+
+          grid.appendChild(item);
+        });
+        document.getElementById('edit-cat-color-preview').style.backgroundColor = state.selectedEditorColor;
+      }
+
+      // カテゴリリスト
+      function renderModalCategoryList() {
+        const container = document.getElementById('modal-category-list');
+        container.innerHTML = '';
+
+        state.categories.forEach((cat) => {
+          const row = document.createElement('div');
+          row.className = 'py-2.5 flex items-center justify-between text-xs text-gray-600 border-b border-gray-100 last:border-0';
+
+          const left = document.createElement('div');
+          left.className = 'flex items-center gap-2 min-w-0';
+
+          const dot = document.createElement('div');
+          dot.className = 'w-3 h-3 rounded-full flex-shrink-0 border border-black/5';
+          dot.style.backgroundColor = cat.color;
+
+          const name = document.createElement('span');
+          name.className = 'font-medium truncate';
+          name.textContent = cat.name;
+
+          left.appendChild(dot);
+          left.appendChild(name);
+
+          const right = document.createElement('div');
+          right.className = 'flex items-center gap-2';
+
+          const editBtn = document.createElement('button');
+          editBtn.className = 'p-1 text-slate-500 hover:text-indigo-600 transition';
+          editBtn.onclick = () => loadCategoryIntoEditor(cat.id);
+          editBtn.innerHTML = `<i data-lucide="edit-2" class="w-3.5 h-3.5"></i>`;
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'p-1 text-slate-400 hover:text-red-500 transition';
+          delBtn.onclick = async () => deleteCategory(cat.id);
+          delBtn.innerHTML = `<i data-lucide="trash-2" class="w-3.5 h-3.5"></i>`;
+
+          right.appendChild(editBtn);
+          right.appendChild(delBtn);
+
+          row.appendChild(left);
+          row.appendChild(right);
+          container.appendChild(row);
+        });
+        lucide.createIcons();
+      }
+
+      // カテゴリ編集
+      function loadCategoryIntoEditor(id) {
+        const cat = state.categories.find((c) => c.id === id);
+        if (!cat) return;
+
+        document.getElementById('edit-cat-id').value = cat.id;
+        document.getElementById('edit-cat-name').value = cat.name;
+        state.selectedEditorColor = cat.color;
+
+        document.getElementById('editor-title').textContent = 'カテゴリの編集';
+        document.getElementById('btn-cancel-edit-mode').classList.remove('hidden');
+
+        initColorPaletteUI();
+      }
+
+      // カテゴリ保存
+      async function saveCategory() {
+        const idVal = document.getElementById('edit-cat-id').value;
+        const nameVal = document.getElementById('edit-cat-name').value.trim();
+        const colorVal = state.selectedEditorColor;
+
+        if (!nameVal) {
+          alert('カテゴリ名を入力してください');
+          return;
         }
 
-        // カテゴリパレットの初期化
-        function initColorPaletteUI() {
-            const grid = document.getElementById('color-palette-grid');
-            grid.innerHTML = '';
-            PALETTE_COLORS.forEach(color => {
-                const item = document.createElement('div');
-                item.className = "w-full aspect-square rounded-lg cursor-pointer border-2 transition transform active:scale-95";
-                item.style.backgroundColor = color;
-                
-                if (state.selectedEditorColor === color) {
-                    item.classList.add('border-slate-800', 'scale-105', 'shadow-md');
-                } else {
-                    item.classList.add('border-transparent', 'hover:border-gray-300');
+        if (idVal) {
+          const target = state.categories.find((c) => c.id === idVal);
+          if (target) {
+            target.name = nameVal;
+            target.color = colorVal;
+          }
+        } else {
+          const newCat = {
+            id: 'cat-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+            name: nameVal,
+            color: colorVal,
+          };
+          state.categories.push(newCat);
+        }
+
+        try {
+          await saveCategoriesToSupabase();
+        } catch (e) {}
+        resetCategoryEditor();
+        renderModalCategoryList();
+      }
+
+      // カテゴリ削除
+      async function deleteCategory(id) {
+        if (state.categories.length <= 1) {
+          alert('最低1つのカテゴリが必要です');
+          return;
+        }
+        if (!confirm('このカテゴリを削除しますか？')) return;
+
+        state.categories = state.categories.filter((c) => c.id !== id);
+        await saveCategoriesToSupabase();
+
+        if (state.selectedFormCategoryId === id) {
+          state.selectedFormCategoryId = state.categories[0].id;
+        }
+
+        resetCategoryEditor();
+        renderModalCategoryList();
+      }
+
+      // 電卓
+      function openCalculator() {
+        const currentAmountValue = document.getElementById('form-amount').value;
+        calcState.expression = '';
+        calcState.currentInput = currentAmountValue === '0' ? '0' : currentAmountValue;
+        calcState.isReset = true;
+        calcState.isOpen = true;
+
+        updateCalcScreen();
+        const modal = document.getElementById('modal-calc');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeCalculator(applyValue = false) {
+        if (applyValue) {
+          try {
+            let evalExpr = calcState.expression + calcState.currentInput;
+            if (evalExpr) {
+              let sanitized = evalExpr.replace(/[^0-9.+\-*/()]/g, '');
+              if (sanitized) {
+                let result = new Function(`return (${sanitized})`)();
+                if (isFinite(result)) {
+                  document.getElementById('form-amount').value = Math.round(result).toString();
                 }
-
-                item.onclick = () => {
-                    state.selectedEditorColor = color;
-                    document.getElementById('edit-cat-color-preview').style.backgroundColor = color;
-                    initColorPaletteUI();
-                };
-
-                grid.appendChild(item);
-            });
-            document.getElementById('edit-cat-color-preview').style.backgroundColor = state.selectedEditorColor;
-        }
-
-        // カテゴリリスト
-        function renderModalCategoryList() {
-            const container = document.getElementById('modal-category-list');
-            container.innerHTML = '';
-
-            state.categories.forEach(cat => {
-                const row = document.createElement('div');
-                row.className = "py-2.5 flex items-center justify-between text-xs text-gray-600 border-b border-gray-100 last:border-0";
-
-                const left = document.createElement('div');
-                left.className = "flex items-center gap-2 min-w-0";
-                
-                const dot = document.createElement('div');
-                dot.className = "w-3 h-3 rounded-full flex-shrink-0 border border-black/5";
-                dot.style.backgroundColor = cat.color;
-
-                const name = document.createElement('span');
-                name.className = "font-medium truncate";
-                name.textContent = cat.name;
-
-                left.appendChild(dot);
-                left.appendChild(name);
-
-                const right = document.createElement('div');
-                right.className = "flex items-center gap-2";
-
-                const editBtn = document.createElement('button');
-                editBtn.className = "p-1 text-slate-500 hover:text-indigo-600 transition";
-                editBtn.onclick = () => loadCategoryIntoEditor(cat.id);
-                editBtn.innerHTML = `<i data-lucide="edit-2" class="w-3.5 h-3.5"></i>`;
-
-                const delBtn = document.createElement('button');
-                delBtn.className = "p-1 text-slate-400 hover:text-red-500 transition";
-                delBtn.onclick = async () => deleteCategory(cat.id);
-                delBtn.innerHTML = `<i data-lucide="trash-2" class="w-3.5 h-3.5"></i>`;
-
-                right.appendChild(editBtn);
-                right.appendChild(delBtn);
-
-                row.appendChild(left);
-                row.appendChild(right);
-                container.appendChild(row);
-            });
-            lucide.createIcons();
-        }
-
-        // カテゴリ編集
-        function loadCategoryIntoEditor(id) {
-            const cat = state.categories.find(c => c.id === id);
-            if (!cat) return;
-
-            document.getElementById('edit-cat-id').value = cat.id;
-            document.getElementById('edit-cat-name').value = cat.name;
-            state.selectedEditorColor = cat.color;
-            
-            document.getElementById('editor-title').textContent = "カテゴリの編集";
-            document.getElementById('btn-cancel-edit-mode').classList.remove('hidden');
-            
-            initColorPaletteUI();
-        }
-
-        // カテゴリ保存
-        async function saveCategory() {
-            const idVal = document.getElementById('edit-cat-id').value;
-            const nameVal = document.getElementById('edit-cat-name').value.trim();
-            const colorVal = state.selectedEditorColor;
-
-            if (!nameVal) {
-                alert("カテゴリ名を入力してください");
-                return;
-            }
-
-            if (idVal) {
-                const target = state.categories.find(c => c.id === idVal);
-                if (target) {
-                    target.name = nameVal;
-                    target.color = colorVal;
-                }
+              }
             } else {
-                const newCat = {
-                    id: 'cat-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-                    name: nameVal,
-                    color: colorVal
-                };
-                state.categories.push(newCat);
+              document.getElementById('form-amount').value = Math.round(Number(calcState.currentInput) || 0).toString();
             }
-
-            try {
-                await saveCategoriesToSupabase();
-            } catch(e) {
-            }
-            resetCategoryEditor();
-            renderModalCategoryList();
+          } catch (e) {
+            alert('数式エラーが発生しました');
+            return;
+          }
         }
+        calcState.isOpen = false;
+        const modal = document.getElementById('modal-calc');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
 
-        // カテゴリ削除
-        async function deleteCategory(id) {
-            if (state.categories.length <= 1) {
-                alert("最低1つのカテゴリが必要です");
-                return;
-            }
-            if (!confirm("このカテゴリを削除しますか？")) return;
+      function updateCalcScreen() {
+        document.getElementById('calc-expr').textContent = calcState.expression;
+        document.getElementById('calc-screen').textContent = calcState.currentInput;
+      }
 
-            state.categories = state.categories.filter(c => c.id !== id);
-            await saveCategoriesToSupabase();
-            
-            if (state.selectedFormCategoryId === id) {
-                state.selectedFormCategoryId = state.categories[0].id;
-            }
-
-            resetCategoryEditor();
-            renderModalCategoryList();
-        }
-
-        // 電卓
-        function openCalculator() {
-            const currentAmountValue = document.getElementById('form-amount').value;
+      // 電卓のボタンが押された
+      function pressCalc(key) {
+        if ((key >= '0' && key <= '9') || key === '.') {
+          if (calcState.isReset || calcState.currentInput === '0') {
+            calcState.currentInput = key === '.' ? '0.' : key;
+            calcState.isReset = false;
+          } else {
+            if (key === '.' && calcState.currentInput.includes('.')) return;
+            calcState.currentInput += key;
+          }
+        } else if (['+', '-', '*', '/'].includes(key)) {
+          calcState.expression += calcState.currentInput + ' ' + key + ' ';
+          calcState.currentInput = '0';
+          calcState.isReset = true;
+        } else if (key === '=') {
+          if (!calcState.expression) return;
+          try {
+            let fullExpr = calcState.expression + calcState.currentInput;
+            let sanitized = fullExpr.replace(/[^0-9.+\-*/()]/g, '');
+            let res = new Function(`return (${sanitized})`)();
+            calcState.currentInput = String(Math.round(res));
             calcState.expression = '';
-            calcState.currentInput = currentAmountValue === '0' ? '0' : currentAmountValue;
             calcState.isReset = true;
-            calcState.isOpen = true;
-            
-            updateCalcScreen();
-            const modal = document.getElementById('modal-calc');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeCalculator(applyValue = false) {
-            if (applyValue) {
-                try {
-                    let evalExpr = calcState.expression + calcState.currentInput;
-                    if (evalExpr) {
-                        let sanitized = evalExpr.replace(/[^0-9.+\-*/()]/g, '');
-                        if(sanitized) {
-                            let result = new Function(`return (${sanitized})`)();
-                            if (isFinite(result)) {
-                                document.getElementById('form-amount').value = Math.round(result).toString();
-                            }
-                        }
-                    } else {
-                        document.getElementById('form-amount').value = Math.round(Number(calcState.currentInput) || 0).toString();
-                    }
-                } catch(e) {
-                    alert("数式エラーが発生しました");
-                    return;
-                }
-            }
-            calcState.isOpen = false;
-            const modal = document.getElementById('modal-calc');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        function updateCalcScreen() {
-            document.getElementById('calc-expr').textContent = calcState.expression;
-            document.getElementById('calc-screen').textContent = calcState.currentInput;
-        }
-
-        // 電卓のボタンが押された
-        function pressCalc(key) {
-            if ((key >= '0' && key <= '9') || key === '.') {
-                if (calcState.isReset || calcState.currentInput === '0') {
-                    calcState.currentInput = key === '.' ? '0.' : key;
-                    calcState.isReset = false;
-                } else {
-                    if (key === '.' && calcState.currentInput.includes('.')) return;
-                    calcState.currentInput += key;
-                }
-            } else if (['+', '-', '*', '/'].includes(key)) {
-                calcState.expression += calcState.currentInput + ' ' + key + ' ';
-                calcState.currentInput = '0';
-                calcState.isReset = true;
-            } else if (key === '=') {
-                if (!calcState.expression) return;
-                try {
-                    let fullExpr = calcState.expression + calcState.currentInput;
-                    let sanitized = fullExpr.replace(/[^0-9.+\-*/()]/g, '');
-                    let res = new Function(`return (${sanitized})`)();
-                    calcState.currentInput = String(Math.round(res));
-                    calcState.expression = '';
-                    calcState.isReset = true;
-                } catch(e) {
-                    calcState.currentInput = 'Error';
-                }
-            } else if (key === 'C') {
-                calcState.expression = '';
-                calcState.currentInput = '0';
-                calcState.isReset = true;
-            } else if (key === 'DEL') {
-                if (calcState.currentInput.length > 1) {
-                    calcState.currentInput = calcState.currentInput.slice(0, -1);
-                } else {
-                    calcState.currentInput = '0';
-                    calcState.isReset = true;
-                }
-            } else if (key === '±') {
-                if (calcState.currentInput !== '0' && calcState.currentInput !== 'Error') {
-                    if (calcState.currentInput.startsWith('-')) {
-                        calcState.currentInput = calcState.currentInput.slice(1);
-                    } else {
-                        calcState.currentInput = '-' + calcState.currentInput;
-                    }
-                }
-            }
-            updateCalcScreen();
-        }
-
-        // キーボードが押された時
-        function setupKeyboardListeners() {
-            window.addEventListener('keydown', (e) => {
-                if (!calcState.isOpen) return;
-
-                const key = e.key;
-                if (key >= '0' && key <= '9' || key === '.') {
-                    e.preventDefault();
-                    pressCalc(key);
-                } else if (['+', '-', '*', '/'].includes(key)) {
-                    e.preventDefault();
-                    pressCalc(key);
-                } else if (key === 'Enter') {
-                    e.preventDefault();
-                    if (calcState.expression) {
-                        pressCalc('=');
-                    } else {
-                        closeCalculator(true);
-                    }
-                } else if (key === 'Escape') {
-                    e.preventDefault();
-                    closeCalculator(false);
-                } else if (key === 'Backspace') {
-                    e.preventDefault();
-                    pressCalc('DEL');
-                } else if (key === 'Delete' || key === 'c' || key === 'C') {
-                    e.preventDefault();
-                    pressCalc('C');
-                }
-            });
-        }
-
-        // レコード保存
-        async function saveRecord() {
-            const dateVal = document.getElementById('form-date').value;
-            const amtVal = Number(document.getElementById('form-amount').value) || 0;
-            const memoVal = document.getElementById('form-memo').value.trim();
-
-            if (!dateVal) {
-                alert("日付を入力してください");
-                return;
-            }
-            if (!state.selectedFormCategoryId) {
-                alert("カテゴリを選択してください");
-                return;
-            }
-
-            if (state.editingRecordId) {
-                const idx = state.records.findIndex(r => r.id === state.editingRecordId);
-                if (idx !== -1) {
-                    state.records[idx].date = dateVal;
-                    state.records[idx].category_id = state.selectedFormCategoryId;
-                    state.records[idx].amount = amtVal;
-                    state.records[idx].memo = memoVal;
-                }
+          } catch (e) {
+            calcState.currentInput = 'Error';
+          }
+        } else if (key === 'C') {
+          calcState.expression = '';
+          calcState.currentInput = '0';
+          calcState.isReset = true;
+        } else if (key === 'DEL') {
+          if (calcState.currentInput.length > 1) {
+            calcState.currentInput = calcState.currentInput.slice(0, -1);
+          } else {
+            calcState.currentInput = '0';
+            calcState.isReset = true;
+          }
+        } else if (key === '±') {
+          if (calcState.currentInput !== '0' && calcState.currentInput !== 'Error') {
+            if (calcState.currentInput.startsWith('-')) {
+              calcState.currentInput = calcState.currentInput.slice(1);
             } else {
-                const newRec = {
-                    id: 'rec-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-                    date: dateVal,
-                    category_id: state.selectedFormCategoryId,
-                    amount: amtVal,
-                    memo: memoVal
-                };
-                state.records.push(newRec);
+              calcState.currentInput = '-' + calcState.currentInput;
             }
+          }
+        }
+        updateCalcScreen();
+      }
 
-            try {
-                await saveRecordsToSupabase();
-            } catch(e) {
+      // キーボードが押された時
+      function setupKeyboardListeners() {
+        window.addEventListener('keydown', (e) => {
+          if (!calcState.isOpen) return;
+
+          const key = e.key;
+          if ((key >= '0' && key <= '9') || key === '.') {
+            e.preventDefault();
+            pressCalc(key);
+          } else if (['+', '-', '*', '/'].includes(key)) {
+            e.preventDefault();
+            pressCalc(key);
+          } else if (key === 'Enter') {
+            e.preventDefault();
+            if (calcState.expression) {
+              pressCalc('=');
+            } else {
+              closeCalculator(true);
             }
-            state.currentDate = new Date(dateVal);
-            switchView('calendar');
+          } else if (key === 'Escape') {
+            e.preventDefault();
+            closeCalculator(false);
+          } else if (key === 'Backspace') {
+            e.preventDefault();
+            pressCalc('DEL');
+          } else if (key === 'Delete' || key === 'c' || key === 'C') {
+            e.preventDefault();
+            pressCalc('C');
+          }
+        });
+      }
+
+      // レコード保存
+      async function saveRecord() {
+        const dateVal = document.getElementById('form-date').value;
+        const amtVal = Number(document.getElementById('form-amount').value) || 0;
+        const memoVal = document.getElementById('form-memo').value.trim();
+
+        if (!dateVal) {
+          alert('日付を入力してください');
+          return;
+        }
+        if (!state.selectedFormCategoryId) {
+          alert('カテゴリを選択してください');
+          return;
         }
 
-        // レコード削除
-        async function deleteRecord() {
-            if (!state.editingRecordId) return;
-            if (!confirm("この履歴を削除しますか？")) return;
-
-            state.records = state.records.filter(r => r.id !== state.editingRecordId);
-            try {
-                await saveRecordsToSupabase();
-            } catch(e) {
-            }
-            switchView('calendar');
+        if (state.editingRecordId) {
+          const idx = state.records.findIndex((r) => r.id === state.editingRecordId);
+          if (idx !== -1) {
+            state.records[idx].date = dateVal;
+            state.records[idx].category_id = state.selectedFormCategoryId;
+            state.records[idx].amount = amtVal;
+            state.records[idx].memo = memoVal;
+          }
+        } else {
+          const newRec = {
+            id: 'rec-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+            date: dateVal,
+            category_id: state.selectedFormCategoryId,
+            amount: amtVal,
+            memo: memoVal,
+          };
+          state.records.push(newRec);
         }
 
-        // レポート画面
-        function renderReportGraphView() {
-            const d = state.currentDate;
-            const yearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        try {
+          await saveRecordsToSupabase();
+        } catch (e) {}
+        state.currentDate = new Date(dateVal);
+        switchView('calendar');
+      }
 
-            document.getElementById('report-month-title').textContent = `${d.getFullYear()}年 ${d.getMonth() + 1}月`;
+      // レコード削除
+      async function deleteRecord() {
+        if (!state.editingRecordId) return;
+        if (!confirm('この履歴を削除しますか？')) return;
 
-            // 月でフィルタリング
-            const currentMonthData = state.records.filter(r => r.date.startsWith(yearMonth));
+        state.records = state.records.filter((r) => r.id !== state.editingRecordId);
+        try {
+          await saveRecordsToSupabase();
+        } catch (e) {}
+        switchView('calendar');
+      }
 
-            let totalIncome = 0;
-            let totalExpense = 0;
-            currentMonthData.forEach(r => {
-                if (r.amount >= 0) totalIncome += r.amount;
-                else totalExpense += r.amount;
-            });
-            const netGrandTotal = totalIncome + totalExpense;
+      // レポート画面
+      function renderReportGraphView() {
+        const d = state.currentDate;
+        const yearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-            document.getElementById('report-income').textContent = formatDisplayAmount(totalIncome);
-            document.getElementById('report-expense').textContent = formatDisplayAmount(totalExpense);
+        document.getElementById('report-month-title').textContent = `${d.getFullYear()}年 ${d.getMonth() + 1}月`;
 
-            const totalContainer = document.getElementById('report-total');
-            totalContainer.textContent = formatDisplayAmount(netGrandTotal);
-            totalContainer.className = `font-bold text-sm mt-0.5 ${getAmountColorClass(netGrandTotal)}`;
+        // 月でフィルタリング
+        const currentMonthData = state.records.filter((r) => r.date.startsWith(yearMonth));
 
-            // 利益と損失に分ける
-            const incomeRecords = currentMonthData.filter(r => r.amount >= 0);
-            const expenseRecords = currentMonthData.filter(r => r.amount < 0);
+        let totalIncome = 0;
+        let totalExpense = 0;
+        currentMonthData.forEach((r) => {
+          if (r.amount >= 0) totalIncome += r.amount;
+          else totalExpense += r.amount;
+        });
+        const netGrandTotal = totalIncome + totalExpense;
 
-            // カテゴリ集計
-            const aggregate = (data) => {
-                const grouped = data.reduce((acc, curr) => {
-                    const cat = state.categories.find(c => c.id === curr.category_id) || {id: 'unknown', name: '未分類', color: '#9ca3af'};
+        document.getElementById('report-income').textContent = formatDisplayAmount(totalIncome);
+        document.getElementById('report-expense').textContent = formatDisplayAmount(totalExpense);
 
-                    if (!acc[cat.id]) {
-                        acc[cat.id] = {id: cat.id, name: cat.name, value: 0, color: cat.color};
-                    }
+        const totalContainer = document.getElementById('report-total');
+        totalContainer.textContent = formatDisplayAmount(netGrandTotal);
+        totalContainer.className = `font-bold text-sm mt-0.5 ${getAmountColorClass(netGrandTotal)}`;
 
-                    acc[cat.id].value += Math.abs(curr.amount);
+        // 利益と損失に分ける
+        const incomeRecords = currentMonthData.filter((r) => r.amount >= 0);
+        const expenseRecords = currentMonthData.filter((r) => r.amount < 0);
 
-                    return acc;
-                }, {});
+        // カテゴリ集計
+        const aggregate = (data) => {
+          const grouped = data.reduce((acc, curr) => {
+            const cat = state.categories.find((c) => c.id === curr.category_id) || { id: 'unknown', name: '未分類', color: '#9ca3af' };
 
-                // カテゴリ登録順に並び替え
-                return state.categories.map(cat => grouped[cat.id]).filter(Boolean);
-            };
-
-            const incomeGraphData = aggregate(incomeRecords);
-            const expenseGraphData = aggregate(expenseRecords);
-
-            // 描画関数を呼び出す
-            drawPieChart(incomeGraphData, 'report-svg-income');
-            renderLegend(incomeGraphData, 'report-legend-income');
-            drawPieChart(expenseGraphData, 'report-svg-expense');
-            renderLegend(expenseGraphData, 'report-legend-expense');
-        }
-
-        // 円グラフ
-        function drawPieChart(chartData, svgId) {
-            const svg = document.getElementById(svgId);
-            svg.innerHTML = '';
-
-            const total = chartData.reduce((sum, item) => sum + item.value, 0);
-
-            if (total === 0) {
-                svg.innerHTML = '<text x="50" y="50" text-anchor="middle" font-size="8" fill="#9ca3af">データがありません。</text>';
-                return;
-            }
-
-            const centerX = 50;
-            const centerY = 50;
-
-            const radius = 40;
-
-            let startAngle = -Math.PI / 2;
-
-            chartData.forEach(slice => {
-                const sliceAngle = (slice.value / total) * Math.PI * 2;
-                const endAngle = startAngle + sliceAngle;
-                const percentageValue = (slice.value / total) * 100;
-
-                if (Math.abs(sliceAngle - Math.PI * 2) < 0.0001) {
-
-                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                    circle.setAttribute("cx", centerX);
-                    circle.setAttribute("cy", centerY);
-                    circle.setAttribute("r", radius);
-                    circle.setAttribute("fill", slice.color);
-                    svg.appendChild(circle);
-
-                } else if (sliceAngle !== 0) {
-
-                    const x1 = centerX + radius * Math.cos(startAngle);
-                    const y1 = centerY + radius * Math.sin(startAngle);
-                    const x2 = centerX + radius * Math.cos(endAngle);
-                    const y2 = centerY + radius * Math.sin(endAngle);
-                    const largeArcFlag = sliceAngle > Math.PI ? 1 : 0;
-                    const pathData = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
-
-                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                    path.setAttribute("d", pathData);
-                    path.setAttribute("fill", slice.color);
-                    svg.appendChild(path);
-                }
-
-                startAngle = endAngle;
-            });
-        }
-
-        // 凡例
-        function renderLegend(chartData, legendId) {
-            const legend = document.getElementById(legendId);
-            legend.innerHTML = '';
-
-            const total = chartData.reduce((sum, item) => sum + item.value, 0);
-
-            if (total === 0) {
-                return;
+            if (!acc[cat.id]) {
+              acc[cat.id] = {
+                id: cat.id,
+                name: cat.name,
+                value: 0,
+                color: cat.color,
+              };
             }
 
-            chartData.forEach(slice => {
-                const percentageValue = (slice.value / total) * 100;
+            acc[cat.id].value += Math.abs(curr.amount);
 
-                const row = document.createElement('div');
-                row.className = "flex items-center justify-between text-xs border-b border-gray-100 pb-1.5 last:border-0";
+            return acc;
+          }, {});
 
-                const left = document.createElement('div');
-                left.className = "flex items-center gap-2 min-w-0";
+          // カテゴリ登録順に並び替え
+          return state.categories.map((cat) => grouped[cat.id]).filter(Boolean);
+        };
 
-                const dot = document.createElement('div');
-                dot.className = "w-2.5 h-2.5 rounded-full flex-shrink-0 border border-black/5";
-                dot.style.backgroundColor = slice.color;
+        const incomeGraphData = aggregate(incomeRecords);
+        const expenseGraphData = aggregate(expenseRecords);
 
-                const nameLbl = document.createElement('span');
-                nameLbl.className = "font-medium truncate text-gray-600";
-                nameLbl.textContent = `${slice.name} (${Math.round(percentageValue)}%)`;
+        // 描画関数を呼び出す
+        drawPieChart(incomeGraphData, 'report-svg-income');
+        renderLegend(incomeGraphData, 'report-legend-income');
+        drawPieChart(expenseGraphData, 'report-svg-expense');
+        renderLegend(expenseGraphData, 'report-legend-expense');
+      }
 
-                left.appendChild(dot);
-                left.appendChild(nameLbl);
+      // 円グラフ
+      function drawPieChart(chartData, svgId) {
+        const svg = document.getElementById(svgId);
+        svg.innerHTML = '';
 
-                const rightVal = document.createElement('span');
-                rightVal.className = "font-bold text-gray-700 font-mono pl-2 flex-shrink-0";
-                rightVal.textContent = formatDisplayAmount(slice.value);
+        const total = chartData.reduce((sum, item) => sum + item.value, 0);
 
-                row.appendChild(left);
-                row.appendChild(rightVal);
-                legend.appendChild(row);
-            });
+        if (total === 0) {
+          svg.innerHTML = '<text x="50" y="50" text-anchor="middle" font-size="8" fill="#9ca3af">データがありません。</text>';
+          return;
         }
+
+        const centerX = 50;
+        const centerY = 50;
+
+        const radius = 40;
+
+        let startAngle = -Math.PI / 2;
+
+        chartData.forEach((slice) => {
+          const sliceAngle = (slice.value / total) * Math.PI * 2;
+          const endAngle = startAngle + sliceAngle;
+          const percentageValue = (slice.value / total) * 100;
+
+          if (Math.abs(sliceAngle - Math.PI * 2) < 0.0001) {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', centerX);
+            circle.setAttribute('cy', centerY);
+            circle.setAttribute('r', radius);
+            circle.setAttribute('fill', slice.color);
+            svg.appendChild(circle);
+          } else if (sliceAngle !== 0) {
+            const x1 = centerX + radius * Math.cos(startAngle);
+            const y1 = centerY + radius * Math.sin(startAngle);
+            const x2 = centerX + radius * Math.cos(endAngle);
+            const y2 = centerY + radius * Math.sin(endAngle);
+            const largeArcFlag = sliceAngle > Math.PI ? 1 : 0;
+            const pathData = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathData);
+            path.setAttribute('fill', slice.color);
+            svg.appendChild(path);
+          }
+
+          startAngle = endAngle;
+        });
+      }
+
+      // 凡例
+      function renderLegend(chartData, legendId) {
+        const legend = document.getElementById(legendId);
+        legend.innerHTML = '';
+
+        const total = chartData.reduce((sum, item) => sum + item.value, 0);
+
+        if (total === 0) {
+          return;
+        }
+
+        chartData.forEach((slice) => {
+          const percentageValue = (slice.value / total) * 100;
+
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between text-xs border-b border-gray-100 pb-1.5 last:border-0';
+
+          const left = document.createElement('div');
+          left.className = 'flex items-center gap-2 min-w-0';
+
+          const dot = document.createElement('div');
+          dot.className = 'w-2.5 h-2.5 rounded-full flex-shrink-0 border border-black/5';
+          dot.style.backgroundColor = slice.color;
+
+          const nameLbl = document.createElement('span');
+          nameLbl.className = 'font-medium truncate text-gray-600';
+          nameLbl.textContent = `${slice.name} (${Math.round(percentageValue)}%)`;
+
+          left.appendChild(dot);
+          left.appendChild(nameLbl);
+
+          const rightVal = document.createElement('span');
+          rightVal.className = 'font-bold text-gray-700 font-mono pl-2 flex-shrink-0';
+          rightVal.textContent = formatDisplayAmount(slice.value);
+
+          row.appendChild(left);
+          row.appendChild(rightVal);
+          legend.appendChild(row);
+        });
+      }
     </script>
-</body>
+  </body>
 </html>
